@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QueryBuilder } from '@/components/QueryBuilder';
@@ -124,7 +123,7 @@ export const QueryInterface: React.FC<QueryInterfaceProps> = ({ onQuerySubmit })
           </TabsContent>
 
           <TabsContent value="conversational" className="flex-1 mt-6">
-            <ConversationalInterface onQuerySubmit={handleConversationalQuery} />
+            <ConversationalInterface />
           </TabsContent>
 
           <TabsContent value="simple" className="mt-6">
