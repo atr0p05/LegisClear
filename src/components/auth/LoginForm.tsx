@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Shield, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -69,18 +69,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     console.log('Login result:', result);
 
     if (result.success) {
-      toast.success("Login successful - Welcome back to LegalAI Pro");
+      toast({
+        title: "Login Successful",
+        description: "Welcome back to LegalAI Pro",
+      });
       console.log('Login successful, calling onSuccess');
       onSuccess?.();
     } else if (result.requiresMfa) {
-      console.log('MFA required, updating state');
+      console.log('MFA required, updating requiresMfa state to true');
       setRequiresMfa(true);
-      toast.info("MFA Required - Please enter your multi-factor authentication code");
+      toast({
+        title: "MFA Required",
+        description: "Please enter your multi-factor authentication code",
+      });
     } else {
       const errorMsg = result.error || 'Login failed';
       console.log('Login failed:', errorMsg);
       setError(errorMsg);
-      toast.error(errorMsg);
+      toast({
+        title: "Login Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
     }
   };
 
@@ -156,8 +166,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </div>
 
           {requiresMfa && (
-            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-              <Label htmlFor="mfaCode">Multi-Factor Authentication Code</Label>
+            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300 border-2 border-yellow-300 bg-yellow-50 p-4 rounded-md">
+              <Label htmlFor="mfaCode" className="text-lg font-semibold text-yellow-800">
+                🔐 Multi-Factor Authentication Required
+              </Label>
               <Input
                 id="mfaCode"
                 type="text"
@@ -168,9 +180,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 maxLength={6}
                 required
                 autoFocus
+                className="border-yellow-400 focus:border-yellow-500"
               />
-              <p className="text-sm text-muted-foreground">
-                For demo purposes, use: <strong>123456</strong>
+              <p className="text-sm text-yellow-700 font-medium">
+                For demo purposes, use: <strong className="bg-yellow-200 px-1 rounded">123456</strong>
               </p>
             </div>
           )}
