@@ -7,9 +7,10 @@ import { DocumentManager } from '@/components/DocumentManager';
 import { ResultsDisplay } from '@/components/ResultsDisplay';
 import { Dashboard } from '@/components/Dashboard';
 import { ReportsAndAnalytics } from '@/components/ReportsAndAnalytics';
+import { CollaborationDashboard } from '@/components/collaboration/CollaborationDashboard';
 
 const Index = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'query' | 'documents' | 'results' | 'reports'>('query');
+  const [activeView, setActiveView] = useState<'dashboard' | 'query' | 'documents' | 'results' | 'reports' | 'collaboration'>('query');
   const [queryResults, setQueryResults] = useState(null);
 
   const handleQuerySubmit = (query: string) => {
@@ -57,6 +58,7 @@ const Index = () => {
         {activeView === 'documents' && <DocumentManager />}
         {activeView === 'results' && <ResultsDisplay results={queryResults} />}
         {activeView === 'reports' && <ReportsAndAnalytics />}
+        {activeView === 'collaboration' && <CollaborationDashboard />}
       </MainContent>
     </div>
   );

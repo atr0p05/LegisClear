@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Search, FileText, BarChart3, Settings, 
-  Home, LogOut, User, Bell
+  Home, LogOut, User, Bell, Users
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
-  activeView: 'dashboard' | 'query' | 'documents' | 'results' | 'reports';
-  onViewChange: (view: 'dashboard' | 'query' | 'documents' | 'results' | 'reports') => void;
+  activeView: 'dashboard' | 'query' | 'documents' | 'results' | 'reports' | 'collaboration';
+  onViewChange: (view: 'dashboard' | 'query' | 'documents' | 'results' | 'reports' | 'collaboration') => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'query', label: 'AI Legal Search', icon: Search },
     { id: 'documents', label: 'Document Manager', icon: FileText },
+    { id: 'collaboration', label: 'Collaboration Hub', icon: Users },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 }
   ];
 
@@ -51,6 +52,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             {item.label}
             {item.id === 'reports' && (
               <Badge className="ml-auto bg-green-100 text-green-800">New</Badge>
+            )}
+            {item.id === 'collaboration' && (
+              <Badge className="ml-auto bg-blue-100 text-blue-800">Beta</Badge>
             )}
           </Button>
         ))}
