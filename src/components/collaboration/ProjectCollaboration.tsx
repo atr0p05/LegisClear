@@ -13,7 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { 
   FolderOpen, Plus, Users, FileText, Search, 
   Calendar, Clock, Star, MoreHorizontal, Edit,
-  Share2, Archive, Trash2, MessageSquare
+  Share2, Archive, Trash2, MessageSquare, Shield
 } from 'lucide-react';
 import { useCollaboration } from '@/contexts/CollaborationContext';
 import { CollaborationProject } from '@/types/collaboration';
