@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, AlertCircle, CheckCircle, X, FolderPlus, FileTemplate } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, X, FolderPlus, File } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UploadFile {
@@ -418,7 +418,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileTemplate className="w-5 h-5" />
+                <File className="w-5 h-5" />
                 Document Templates
               </CardTitle>
             </CardHeader>
