@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,23 +14,7 @@ import { toast } from 'sonner';
 import { MessageDisplay } from './MessageDisplay';
 import { QueryInput } from './QueryInput';
 import { ConversationStats } from './ConversationStats';
-
-interface Message {
-  id: string;
-  type: 'user' | 'ai' | 'system' | 'suggestion';
-  content: string;
-  timestamp: Date;
-  processedQuery?: ProcessedQuery;
-  aiResponse?: AIResponse;
-  suggestions?: Array<{ query: string; reasoning: string; }>;
-  metadata?: {
-    model: string;
-    processingTime: number;
-    cost: number;
-    complexity: string;
-    enhanced?: boolean;
-  };
-}
+import { Message } from '@/types/message';
 
 interface ConversationalInterfaceProps {
   onQuerySubmit?: (query: string, context?: string[]) => Promise<any>;

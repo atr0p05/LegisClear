@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -8,25 +7,7 @@ import {
   User, Brain, Lightbulb, ChevronDown, Target, CheckCircle, 
   AlertCircle, Clock, DollarSign, Zap 
 } from 'lucide-react';
-import { ProcessedQuery } from '@/services/QueryProcessor';
-import { AIResponse } from '@/services/AIService';
-
-interface Message {
-  id: string;
-  type: 'user' | 'ai' | 'system' | 'suggestion';
-  content: string;
-  timestamp: Date;
-  processedQuery?: ProcessedQuery;
-  aiResponse?: AIResponse;
-  suggestions?: Array<{ query: string; reasoning: string; }>;
-  metadata?: {
-    model: string;
-    processingTime: number;
-    cost: number;
-    complexity: string;
-    enhanced?: boolean;
-  };
-}
+import { Message } from '@/types/message';
 
 interface MessageDisplayProps {
   message: Message;
