@@ -4,6 +4,8 @@ import { Message } from '@/types/message';
 import { aiService } from '@/services/AIService';
 import { queryProcessor, QueryContext } from '@/services/QueryProcessor';
 import { enhancedAIService } from '@/services/EnhancedAIService';
+import { analyticsService } from '@/services/AnalyticsService';
+import { cacheService } from '@/services/CacheService';
 import { useToast } from '@/hooks/use-toast';
 
 export const useConversation = () => {
@@ -45,6 +47,7 @@ export const useConversation = () => {
     if (!text.trim() || isProcessing) return;
 
     setIsProcessing(true);
+    const startTime = Date.now();
 
     // Add user message
     const userMessage: Message = {
@@ -63,9 +66,47 @@ export const useConversation = () => {
     addMessage(userMessage);
 
     try {
-      // Process query with enhanced AI
       const context = buildQueryContext();
-      const { processed, response } = await queryProcessor.processQuery(text, context);
+      
+      // Check cache first
+      const cacheKey = cacheService.generateQueryKey(text, selectedModel, context.conversationHistory.map(h => h.query));
+      const cachedResponse = cacheService.get(cacheKey);
+
+      let response;
+      let processingTime = 0;
+
+      if (cachedResponse) {
+        response = cachedResponse;
+        processingTime = Date.now() - startTime;
+        
+        toast({
+          title: 'Cache Hit',
+          description: 'Response retrieved from cache for faster performance.',
+          duration: 2000
+        });
+      } else {
+        // Process query with enhanced AI
+        const { processed, response: aiResponse } = await queryProcessor.processQuery(text, context);
+        response = aiResponse;
+        processingTime = Date.now() - startTime;
+        
+        // Cache the response
+        cacheService.set(cacheKey, aiResponse, 30 * 60 * 1000); // 30 minutes TTL
+      }
+
+      // Record analytics
+      analyticsService.recordQuery({
+        queryId: `query-${Date.now()}`,
+        query: text,
+        responseTime: processingTime,
+        tokensUsed: response.metadata.tokensUsed,
+        cost: response.metadata.cost,
+        confidence: response.confidence,
+        timestamp: new Date(),
+        model: selectedModel,
+        queryType: 'research', // This could be determined from context
+        complexity: 'medium' // This could be calculated
+      });
 
       // Create AI response message
       const aiMessage: Message = {
@@ -80,13 +121,12 @@ export const useConversation = () => {
           analysis: response.analysis,
           metadata: response.metadata
         },
-        processedQuery: processed,
         metadata: {
           model: response.metadata.model,
-          processingTime: response.metadata.processingTime,
+          processingTime: processingTime,
           tokensUsed: response.metadata.tokensUsed,
           cost: response.metadata.cost,
-          complexity: processed.estimatedComplexity
+          complexity: 'medium'
         }
       };
 
@@ -125,6 +165,22 @@ export const useConversation = () => {
 
     } catch (error) {
       console.error('Error processing message:', error);
+      const processingTime = Date.now() - startTime;
+      
+      // Record failed query in analytics
+      analyticsService.recordQuery({
+        queryId: `error-query-${Date.now()}`,
+        query: text,
+        responseTime: processingTime,
+        tokensUsed: 0,
+        cost: 0,
+        confidence: 0,
+        timestamp: new Date(),
+        model: selectedModel,
+        queryType: 'research',
+        complexity: 'medium'
+      });
+
       toast({
         title: 'Error',
         description: 'Failed to process your message. Please try again.',
@@ -138,7 +194,7 @@ export const useConversation = () => {
         timestamp: new Date(),
         metadata: {
           model: 'system',
-          processingTime: 0,
+          processingTime: processingTime,
           tokensUsed: 0,
           cost: 0
         }
