@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -233,7 +232,7 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
       )}
       
       {showWarning && score < 0.6 && (
-        <AlertTriangle className="w-4 h-4 text-amber-500" title="Low confidence - verify carefully" />
+        <AlertTriangle className="w-4 h-4 text-amber-500" />
       )}
     </div>
   );
