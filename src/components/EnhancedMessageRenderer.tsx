@@ -1,3 +1,4 @@
+
 import React, { useContext } from 'react';
 import { DocumentNavigationContext } from '@/contexts/DocumentNavigationContext';
 import { Scale } from 'lucide-react';
@@ -34,6 +35,11 @@ export const EnhancedMessageRenderer: React.FC<EnhancedMessageRendererProps> = (
   };
 
   const renderContentWithCitations = (text: string) => {
+    // Add null check to prevent the error
+    if (!text || typeof text !== 'string') {
+      return text || '';
+    }
+
     // Enhanced citation detection with better visual styling
     const citationRegex = /\[([^\]]+)\](?:\s*at\s*(\d+))?/g;
     const parts = [];

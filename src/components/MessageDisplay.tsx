@@ -44,13 +44,8 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({
   return (
     <div className="space-y-4">
       <EnhancedMessageRenderer
-        message={message}
-        onCopy={handleCopy}
-        onFeedback={handleFeedback}
+        content={message.content}
         onCitationClick={handleCitationClick}
-        onNavigateToSource={onNavigateToSource}
-        onRefineQuery={onRefineQuery}
-        onAddContext={onAddContext}
       />
 
       {/* Dynamic Suggestions */}
