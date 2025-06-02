@@ -32,9 +32,11 @@ export const CitationLink: React.FC<CitationLinkProps> = ({
     }
   };
 
-  const handleViewDocument = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toast.info('Opening document in viewer...');
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick(e as any);
+    }
   };
 
   return (
@@ -45,17 +47,21 @@ export const CitationLink: React.FC<CitationLinkProps> = ({
             variant="outline"
             size="sm"
             onClick={handleClick}
-            className={`inline-flex items-center gap-1.5 px-2 py-1 h-auto text-xs bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 hover:scale-105 ${className}`}
+            onKeyDown={handleKeyDown}
+            className={`inline-flex items-center gap-1.5 px-2 py-1 h-auto text-xs bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 hover:scale-105 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${className}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open citation ${citation}${pageNumber ? ` at page ${pageNumber}` : ''}`}
           >
-            <Scale className="w-3 h-3" />
+            <Scale className="w-3 h-3 transition-transform duration-200 group-hover:scale-110" />
             <span className="font-medium">{citation}</span>
             {pageNumber && (
               <span className="text-blue-600 font-normal">@ {pageNumber}</span>
             )}
-            <ExternalLink className="w-3 h-3 opacity-60" />
+            <ExternalLink className="w-3 h-3 opacity-60 transition-opacity duration-200 hover:opacity-100" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
+        <TooltipContent side="top" className="max-w-xs animate-fade-in">
           <div className="space-y-1">
             <p className="font-medium">Legal Citation</p>
             <p className="text-sm">{citation}</p>

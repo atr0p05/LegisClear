@@ -59,56 +59,72 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   };
 
   return (
-    <div className={`flex items-center justify-between bg-slate-50/50 rounded-lg p-3 border border-slate-100 ${className}`}>
+    <div className={`flex items-center justify-between bg-slate-50/50 rounded-lg p-3 border border-slate-100 transition-all duration-200 hover:bg-slate-50 hover:border-slate-200 ${className}`}>
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-slate-700">Was this helpful?</span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" role="group" aria-label="Feedback options">
           <Button
             variant={userFeedback === 'positive' ? 'default' : 'outline'}
             size="sm"
             onClick={() => handleFeedback('positive')}
-            className="h-8 px-3 transition-all duration-200 hover:scale-105"
+            className="h-8 px-3 transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-green-500"
+            aria-label="Mark as helpful"
+            aria-pressed={userFeedback === 'positive'}
           >
-            <ThumbsUp className="w-4 h-4" />
+            <ThumbsUp className={`w-4 h-4 transition-transform duration-200 ${userFeedback === 'positive' ? 'scale-110' : ''}`} />
           </Button>
           <Button
             variant={userFeedback === 'negative' ? 'default' : 'outline'}
             size="sm"
             onClick={() => handleFeedback('negative')}
-            className="h-8 px-3 transition-all duration-200 hover:scale-105"
+            className="h-8 px-3 transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-red-500"
+            aria-label="Mark as not helpful"
+            aria-pressed={userFeedback === 'negative'}
           >
-            <ThumbsDown className="w-4 h-4" />
+            <ThumbsDown className={`w-4 h-4 transition-transform duration-200 ${userFeedback === 'negative' ? 'scale-110' : ''}`} />
           </Button>
         </div>
         
         {confidence && (
           <>
             <Separator orientation="vertical" className="h-6" />
-            <Badge variant="outline" className="text-xs">
+            <Badge 
+              variant="outline" 
+              className={`text-xs transition-colors duration-200 ${
+                confidence >= 0.8 ? 'bg-green-50 text-green-700 border-green-200' :
+                confidence >= 0.6 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                'bg-red-50 text-red-700 border-red-200'
+              }`}
+              aria-label={`Confidence level: ${Math.round(confidence * 100)}%`}
+            >
               {Math.round(confidence * 100)}% confidence
             </Badge>
           </>
         )}
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" role="toolbar" aria-label="Message actions">
         <Button 
           variant="ghost" 
           size="sm"
           onClick={handleBookmark}
-          className={`h-8 px-3 transition-all duration-200 hover:scale-105 ${bookmarked ? 'text-yellow-600 hover:text-yellow-700' : ''}`}
+          className={`h-8 px-3 transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-yellow-500 ${bookmarked ? 'text-yellow-600 hover:text-yellow-700' : ''}`}
+          aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
+          aria-pressed={bookmarked}
         >
-          <Bookmark className={`w-4 h-4 ${bookmarked ? 'fill-current' : ''}`} />
+          <Bookmark className={`w-4 h-4 transition-all duration-200 ${bookmarked ? 'fill-current scale-110' : ''}`} />
         </Button>
         
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={handleCopy}
-          className="h-8 px-3 transition-all duration-200 hover:scale-105"
+          className="h-8 px-3 transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-label="Copy message"
+          disabled={copied}
         >
           {copied ? (
-            <Check className="w-4 h-4 text-green-600" />
+            <Check className="w-4 h-4 text-green-600 animate-scale-in" />
           ) : (
             <Copy className="w-4 h-4" />
           )}
@@ -118,7 +134,8 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           variant="ghost" 
           size="sm"
           onClick={handleShare}
-          className="h-8 px-3 transition-all duration-200 hover:scale-105"
+          className="h-8 px-3 transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-label="Share message"
         >
           <Share className="w-4 h-4" />
         </Button>
@@ -127,7 +144,8 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
           variant="ghost" 
           size="sm"
           onClick={handleFlag}
-          className="h-8 px-3 transition-all duration-200 hover:scale-105 text-slate-400 hover:text-red-500"
+          className="h-8 px-3 transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-red-500 text-slate-400 hover:text-red-500"
+          aria-label="Flag message for review"
         >
           <Flag className="w-4 h-4" />
         </Button>
