@@ -51,7 +51,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     'Research Report', 'Contract Template', 'Court Filing', 'Regulation'
   ];
 
-  const confidentialityLevels = ['public', 'confidential', 'restricted'] as const;
+  const confidentialityLevels: ('public' | 'confidential' | 'restricted')[] = ['public', 'confidential', 'restricted'];
 
   useEffect(() => {
     loadSearchHistory();
@@ -111,6 +111,16 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       ...prev,
       [filterType]: value
     }));
+  };
+
+  const handleConfidentialityChange = (level: 'public' | 'confidential' | 'restricted', checked: boolean) => {
+    if (checked) {
+      const currentLevels = filters.confidentiality || [];
+      handleFilterChange('confidentiality', [...currentLevels, level]);
+    } else {
+      const currentLevels = filters.confidentiality || [];
+      handleFilterChange('confidentiality', currentLevels.filter(l => l !== level));
+    }
   };
 
   const removeFilter = (filterType: keyof SearchFilter, value?: string) => {
@@ -358,6 +368,32 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                   </div>
                 </ScrollArea>
               </div>
+
+              <Separator />
+
+              {/* Confidentiality Levels */}
+              <div>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Access Level
+                </h4>
+                <div className="space-y-2">
+                  {confidentialityLevels.map(level => (
+                    <div key={level} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`confidentiality-${level}`}
+                        checked={filters.confidentiality?.includes(level) || false}
+                        onCheckedChange={(checked) => {
+                          handleConfidentialityChange(level, checked as boolean);
+                        }}
+                      />
+                      <label htmlFor={`confidentiality-${level}`} className="text-sm cursor-pointer capitalize">
+                        {level}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -396,6 +432,17 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                       {type}
                       <button 
                         onClick={() => removeFilter('documentTypes', type)}
+                        className="ml-1 hover:text-red-600"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                  {filters.confidentiality?.map(level => (
+                    <Badge key={level} variant="secondary" className="mr-1 mb-1">
+                      {level}
+                      <button 
+                        onClick={() => removeFilter('confidentiality', level)}
                         className="ml-1 hover:text-red-600"
                       >
                         ×
@@ -464,11 +511,11 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                             <h4 className="font-medium">{savedSearch.name}</h4>
                             <p className="text-sm text-slate-600">{savedSearch.query}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" size="sm">
+                              <Badge variant="outline">
                                 {Object.keys(savedSearch.filters).length} filters
                               </Badge>
                               {savedSearch.alertsEnabled && (
-                                <Badge variant="outline" size="sm" className="text-green-600">
+                                <Badge variant="outline" className="text-green-600">
                                   <Bell className="w-3 h-3 mr-1" />
                                   Alerts On
                                 </Badge>
