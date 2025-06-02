@@ -2,12 +2,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart3, Trash2, Settings, FileText } from 'lucide-react';
 
 interface ChatHeaderProps {
-  selectedModel: string;
-  queryType: string;
   showStats: boolean;
   onToggleStats: () => void;
   onClearConversation: () => void;
@@ -16,8 +13,6 @@ interface ChatHeaderProps {
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
-  selectedModel,
-  queryType,
   showStats,
   onToggleStats,
   onClearConversation,
@@ -39,17 +34,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <Select value={selectedModel}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gpt-4o">GPT-4 Optimized</SelectItem>
-              <SelectItem value="gpt-4o-mini">GPT-4 Mini</SelectItem>
-              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-            </SelectContent>
-          </Select>
-
           {onToggleContextManager && (
             <Button
               variant="outline"
