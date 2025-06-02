@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Shield, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PasswordResetFormProps {
@@ -52,7 +52,11 @@ export const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
       <Card className="w-full max-w-md mx-auto">
         <CardHeader className="text-center">
           <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-6 h-6 text-white" />
+            <img 
+              src="/lovable-uploads/d14716a1-25e5-4687-9ec2-56dbe060a748.png" 
+              alt="LegisClear Logo" 
+              className="w-6 h-6 filter brightness-0 invert"
+            />
           </div>
           <CardTitle className="text-2xl">Check Your Email</CardTitle>
           <CardDescription>
@@ -83,9 +87,6 @@ export const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-          <Shield className="w-6 h-6 text-white" />
-        </div>
         <CardTitle className="text-2xl">Reset Password</CardTitle>
         <CardDescription>
           Enter your email to receive reset instructions

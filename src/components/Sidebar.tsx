@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { 
   Search, FileText, BarChart3, Users, 
-  Brain, Settings, HelpCircle, LogOut, Scale
+  Brain, Settings, HelpCircle, LogOut
 } from 'lucide-react';
 import type { PageType } from '@/pages/Index';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,8 +33,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
         {/* Header */}
         <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Scale className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+              <img 
+                src="/lovable-uploads/d14716a1-25e5-4687-9ec2-56dbe060a748.png" 
+                alt="LegisClear Logo" 
+                className="w-8 h-8 object-contain"
+              />
             </div>
             <div>
               <h1 className="text-xl font-bold text-sidebar-foreground">LegisClear</h1>

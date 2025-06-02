@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Shield, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface LoginFormProps {
@@ -84,12 +84,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-          <Shield className="w-6 h-6 text-white" />
-        </div>
         <CardTitle className="text-2xl">Welcome Back</CardTitle>
         <CardDescription>
-          Sign in to your LegalAI Pro account
+          Sign in to your LegisClear account
         </CardDescription>
       </CardHeader>
       
