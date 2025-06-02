@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { ChatInput } from '@/components/ChatInput';
 import { TypingIndicator } from '@/components/TypingIndicator';
 import { ActiveContextManager } from '@/components/ActiveContextManager';
 import { DocumentViewer } from '@/components/DocumentViewer';
-import { DocumentNavigationProvider } from '@/components/EnhancedMessageRenderer';
+import { DocumentNavigationProvider } from '@/contexts/DocumentNavigationContext';
 import { useConversation } from '@/hooks/useConversation';
 import { aiService } from '@/services/AIService';
 import { Settings, X, FileText } from 'lucide-react';

@@ -223,7 +223,7 @@
   }
 
   .citation-link {
-    @apply text-citation-foreground underline underline-offset-2 decoration-1 hover:decoration-2 transition-all duration-150 cursor-pointer font-medium;
+    @apply text-blue-700 underline underline-offset-2 decoration-1 hover:decoration-2 transition-all duration-150 cursor-pointer font-medium;
   }
 
   .action-button {
