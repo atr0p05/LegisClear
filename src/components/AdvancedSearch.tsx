@@ -91,11 +91,16 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
     try {
       if (searchType === 'semantic') {
-        const results = await searchService.semanticSearch(query, filters);
+        const results = await searchService.performSemanticSearch(query);
         onSemanticSearch(results);
         toast.success(`Found ${results.length} semantically related documents`);
       } else {
-        const { results, totalCount } = await searchService.advancedSearch(query, filters);
+        const { results, totalCount } = await searchService.performSearch({
+          query,
+          filters,
+          maxResults: 50,
+          sortBy: 'relevance'
+        });
         onSearchResults(results, totalCount);
         toast.success(`Found ${totalCount} matching documents`);
       }
@@ -115,7 +120,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   };
 
   const handleConfidentialityChange = (level: 'public' | 'confidential' | 'restricted', checked: boolean) => {
-    const currentLevels = (filters.confidentiality as string[]) || [];
+    const currentLevels = (filters.confidentiality || []) as ('public' | 'confidential' | 'restricted')[];
     if (checked) {
       handleFilterChange('confidentiality', [...currentLevels, level]);
     } else {
@@ -410,7 +415,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     <div key={level} className="flex items-center space-x-2">
                       <Checkbox
                         id={`confidentiality-${level}`}
-                        checked={((filters.confidentiality as string[]) || []).includes(level)}
+                        checked={((filters.confidentiality as ('public' | 'confidential' | 'restricted')[]) || []).includes(level)}
                         onCheckedChange={(checked) => {
                           handleConfidentialityChange(level, checked as boolean);
                         }}
@@ -475,7 +480,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         </button>
                       </Badge>
                     ))}
-                    {((filters.confidentiality as string[]) || []).map(level => (
+                    {((filters.confidentiality as ('public' | 'confidential' | 'restricted')[]) || []).map(level => (
                       <Badge key={level} variant="secondary" className="mr-1 mb-1">
                         {level}
                         <button 
