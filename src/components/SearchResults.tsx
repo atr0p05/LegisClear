@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,11 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   FileText, Calendar, User, MapPin, ExternalLink, 
-  Brain, Network, Clock, Star, Share, Download
+  Brain, Network, Clock, Star, Share, Download, Search
 } from 'lucide-react';
 import { SearchResult } from '@/services/SearchService';
 import { searchService } from '@/services/SearchService';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingCard } from '@/components/LoadingCard';
 
 interface SearchResultsProps {
   results: SearchResult[];
@@ -72,18 +73,18 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const ResultCard = ({ result, isSemanticResult = false }: { result: SearchResult; isSemanticResult?: boolean }) => (
     <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer"
+      className="document-card hover:shadow-md transition-all duration-200 cursor-pointer group"
       onClick={() => handleResultClick(result)}
     >
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          {/* Header */}
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          {/* Enhanced Header */}
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h3 className="font-semibold text-slate-900 line-clamp-2 hover:text-blue-600">
+              <h3 className="font-semibold text-slate-900 line-clamp-2 hover:text-primary transition-colors duration-200 tracking-tight leading-snug">
                 {result.title}
               </h3>
-              <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+              <p className="text-sm text-slate-600 mt-2 line-clamp-2 leading-relaxed">
                 {result.snippet}
               </p>
             </div>
@@ -95,10 +96,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   e.stopPropagation();
                   toggleStar(result.id);
                 }}
+                className="opacity-0 group-hover:opacity-100 transition-all duration-200"
               >
                 <Star className={`w-4 h-4 ${starredResults.has(result.id) ? 'fill-yellow-400 text-yellow-400' : 'text-slate-400'}`} />
               </Button>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs font-medium">
                 {isSemanticResult ? 
                   `${formatRelevanceScore(result.semanticScore || 0)} semantic` :
                   `${formatRelevanceScore(result.relevanceScore)} match`
@@ -107,29 +109,29 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </div>
           </div>
 
-          {/* Metadata */}
+          {/* Enhanced Metadata */}
           <div className="flex items-center gap-4 text-sm text-slate-500">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <FileText className="w-4 h-4" />
-              {result.documentType}
+              <span className="font-medium">{result.documentType}</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <User className="w-4 h-4" />
-              {result.author}
+              <span>{result.author}</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
-              {result.date}
+              <span>{result.date}</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
-              {result.jurisdiction}
+              <span>{result.jurisdiction}</span>
             </div>
           </div>
 
-          {/* Badges */}
+          {/* Enhanced Badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className="bg-blue-100 text-blue-800">
+            <Badge className="bg-primary/10 text-primary border-primary/20 font-medium">
               {result.practiceArea}
             </Badge>
             <Badge className={getConfidentialityColor(result.confidentiality)} variant="outline">
@@ -186,20 +188,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     return (
       <div className="space-y-4">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                <div className="h-3 bg-slate-200 rounded w-full"></div>
-                <div className="h-3 bg-slate-200 rounded w-2/3"></div>
-                <div className="flex gap-2">
-                  <div className="h-6 bg-slate-200 rounded w-20"></div>
-                  <div className="h-6 bg-slate-200 rounded w-24"></div>
-                  <div className="h-6 bg-slate-200 rounded w-16"></div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <LoadingCard key={i} lines={3} />
         ))}
       </div>
     );
@@ -207,25 +196,26 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   if (results.length === 0 && (!semanticResults || semanticResults.length === 0)) {
     return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <FileText className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-          <h3 className="text-lg font-medium mb-2">No Results Found</h3>
-          <p className="text-slate-600">
-            Try adjusting your search terms or filters to find what you're looking for.
-          </p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={Search}
+        title="No Results Found"
+        description="Try adjusting your search terms or filters to find what you're looking for."
+        actionLabel="Refine Search"
+        onAction={() => {
+          // This could trigger a search refinement dialog
+          toast.info('Try using different keywords or adjusting your filters');
+        }}
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Results Header */}
-      <div className="flex items-center justify-between">
+      {/* Enhanced Results Header */}
+      <div className="flex items-center justify-between bg-slate-50/50 rounded-lg p-4 border border-slate-200">
         <div>
-          <h2 className="text-xl font-semibold">Search Results</h2>
-          <p className="text-slate-600">
+          <h2 className="text-xl font-semibold tracking-tight">Search Results</h2>
+          <p className="text-slate-600 mt-1">
             Found {totalCount} documents
             {semanticResults && semanticResults.length > 0 && 
               ` • ${semanticResults.length} semantic matches`
@@ -237,6 +227,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             variant={viewMode === 'list' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('list')}
+            className="transition-all duration-200"
           >
             List
           </Button>
@@ -244,6 +235,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             variant={viewMode === 'grid' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('grid')}
+            className="transition-all duration-200"
           >
             Grid
           </Button>
