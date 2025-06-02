@@ -60,7 +60,7 @@ interface DocumentViewerProps {
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({ 
-  document, 
+  document: documentMetadata, 
   content, 
   navigationTarget,
   onNavigationComplete 
@@ -212,11 +212,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   };
 
   const handleDownload = () => {
-    toast.success(`Downloading ${document.title}...`);
+    toast.success(`Downloading ${documentMetadata.title}...`);
   };
 
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}/document/${document.id}`;
+    const shareUrl = `${window.location.origin}/document/${documentMetadata.id}`;
     if (navigationTarget) {
       const params = new URLSearchParams();
       if (navigationTarget.pageNumber) params.set('page', navigationTarget.pageNumber.toString());
@@ -322,10 +322,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3">
-              {getTypeIcon(document.type)}
-              {document.title}
-              {document.version && (
-                <Badge variant="outline">v{document.version}</Badge>
+              {getTypeIcon(documentMetadata.type)}
+              {documentMetadata.title}
+              {documentMetadata.version && (
+                <Badge variant="outline">v{documentMetadata.version}</Badge>
               )}
               {navigationTarget && (
                 <Badge variant="outline" className="flex items-center gap-1">
@@ -335,8 +335,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               )}
             </DialogTitle>
             <div className="flex items-center gap-2">
-              <Badge className={getConfidentialityColor(document.confidentiality)}>
-                {document.confidentiality}
+              <Badge className={getConfidentialityColor(documentMetadata.confidentiality)}>
+                {documentMetadata.confidentiality}
               </Badge>
               <Button variant="outline" size="sm" onClick={handleShare}>
                 <Share className="w-4 h-4 mr-2" />
@@ -413,30 +413,30 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm font-medium text-slate-600">Type</p>
-                          <p className="text-slate-900">{document.type.toUpperCase()}</p>
+                          <p className="text-slate-900">{documentMetadata.type.toUpperCase()}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-600">Category</p>
-                          <p className="text-slate-900">{document.category}</p>
+                          <p className="text-slate-900">{documentMetadata.category}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-600">Size</p>
-                          <p className="text-slate-900">{document.size}</p>
+                          <p className="text-slate-900">{documentMetadata.size}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-600">Language</p>
-                          <p className="text-slate-900">{document.language}</p>
+                          <p className="text-slate-900">{documentMetadata.language}</p>
                         </div>
-                        {document.pages && (
+                        {documentMetadata.pages && (
                           <div>
                             <p className="text-sm font-medium text-slate-600">Pages</p>
-                            <p className="text-slate-900">{document.pages}</p>
+                            <p className="text-slate-900">{documentMetadata.pages}</p>
                           </div>
                         )}
-                        {document.wordCount && (
+                        {documentMetadata.wordCount && (
                           <div>
                             <p className="text-sm font-medium text-slate-600">Word Count</p>
-                            <p className="text-slate-900">{document.wordCount.toLocaleString()}</p>
+                            <p className="text-slate-900">{documentMetadata.wordCount.toLocaleString()}</p>
                           </div>
                         )}
                       </div>
@@ -453,11 +453,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                       <div className="space-y-3">
                         <div>
                           <p className="text-sm font-medium text-slate-600">Upload Date</p>
-                          <p className="text-slate-900">{document.uploadDate}</p>
+                          <p className="text-slate-900">{documentMetadata.uploadDate}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-600">Last Modified</p>
-                          <p className="text-slate-900">{document.lastModified}</p>
+                          <p className="text-slate-900">{documentMetadata.lastModified}</p>
                         </div>
                       </div>
                     </div>
@@ -465,14 +465,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     <Separator />
 
                     {/* Author */}
-                    {document.author && (
+                    {documentMetadata.author && (
                       <>
                         <div>
                           <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                             <User className="w-5 h-5" />
                             Author
                           </h3>
-                          <p className="text-slate-900">{document.author}</p>
+                          <p className="text-slate-900">{documentMetadata.author}</p>
                         </div>
                         <Separator />
                       </>
@@ -485,7 +485,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                         Tags
                       </h3>
                       <div className="flex flex-wrap gap-2">
-                        {document.tags.map((tag, index) => (
+                        {documentMetadata.tags.map((tag, index) => (
                           <Badge key={index} variant="secondary">
                             {tag}
                           </Badge>
@@ -624,16 +624,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
           <TabsContent value="versions" className="flex-1">
             <DocumentVersioning 
-              documentId={document.id}
-              documentTitle={document.title}
-              currentVersion={document.version || "1.0"}
+              documentId={documentMetadata.id}
+              documentTitle={documentMetadata.title}
+              currentVersion={documentMetadata.version || "1.0"}
             />
           </TabsContent>
 
           <TabsContent value="relationships" className="flex-1">
             <DocumentRelationships 
-              documentId={document.id}
-              documentTitle={document.title}
+              documentId={documentMetadata.id}
+              documentTitle={documentMetadata.title}
             />
           </TabsContent>
         </Tabs>
