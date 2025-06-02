@@ -1,24 +1,28 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
-  Search, Filter, Calendar, MapPin, FileText, User, 
-  Tag, Clock, Star, Brain, History, Trash2, Bell
+  Search, Calendar as CalendarIcon, Filter, History, 
+  Save, Bell, Star, User, MapPin, FileText, Clock,
+  TrendingUp, BarChart3, Settings2
 } from 'lucide-react';
-import { searchService, SearchOptions, SearchFilter, SearchResult, SavedSearch } from '@/services/SearchService';
+import { searchService, SearchFilter, SearchResult } from '@/services/SearchService';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface AdvancedSearchProps {
   onSearchResults: (results: SearchResult[], totalCount: number) => void;
-  onSemanticSearch?: (results: SearchResult[]) => void;
+  onSemanticSearch: (results: SearchResult[]) => void;
 }
 
 export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ 
@@ -26,28 +30,26 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   onSemanticSearch 
 }) => {
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<SearchFilter>({});
   const [isSearching, setIsSearching] = useState(false);
+  const [filters, setFilters] = useState<SearchFilter>({});
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
-  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [savedSearches, setSavedSearches] = useState<any[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [saveSearchName, setSaveSearchName] = useState('');
-  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'title' | 'author'>('relevance');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchName, setSearchName] = useState('');
 
   const practiceAreas = [
-    'Contract Law', 'Employment Law', 'IP Law', 'Securities Law', 
-    'Privacy Law', 'Tax Law', 'Real Estate Law', 'Criminal Law'
+    'Contract Law', 'Employment Law', 'Intellectual Property', 'Corporate Law',
+    'Criminal Law', 'Family Law', 'Real Estate', 'Tax Law', 'Immigration Law',
+    'Environmental Law', 'Securities Law', 'Bankruptcy Law'
   ];
 
   const jurisdictions = [
-    'Federal', 'California', 'New York', 'Texas', 'Florida', 
-    'International', 'European Union', 'United Kingdom'
+    'Federal', 'California', 'New York', 'Texas', 'Florida', 'Illinois',
+    'Pennsylvania', 'Ohio', 'Georgia', 'North Carolina', 'Michigan'
   ];
 
   const documentTypes = [
-    'Case Analysis', 'Legal Memo', 'Policy Document', 'Compliance Guide',
+    'Case Law', 'Statute', 'Regulation', 'Legal Brief', 'Contract',
     'Research Report', 'Contract Template', 'Court Filing', 'Regulation'
   ];
 
@@ -59,45 +61,44 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   }, []);
 
   const loadSearchHistory = () => {
-    const history = searchService.getSearchHistory();
-    setSearchHistory(history);
+    const history = localStorage.getItem('searchHistory');
+    if (history) {
+      setSearchHistory(JSON.parse(history));
+    }
   };
 
-  const loadSavedSearches = async () => {
-    const searches = await searchService.getSavedSearches('current-user');
-    setSavedSearches(searches);
+  const loadSavedSearches = () => {
+    const saved = localStorage.getItem('savedSearches');
+    if (saved) {
+      setSavedSearches(JSON.parse(saved));
+    }
   };
 
-  const handleSearch = async (semanticMode: boolean = false) => {
-    if (!query.trim() && Object.keys(filters).length === 0) {
-      toast.error('Please enter a search query or apply filters');
+  const saveToHistory = (searchQuery: string) => {
+    const newHistory = [searchQuery, ...searchHistory.filter(h => h !== searchQuery)].slice(0, 10);
+    setSearchHistory(newHistory);
+    localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+  };
+
+  const handleSearch = async (searchType: 'standard' | 'semantic' = 'standard') => {
+    if (!query.trim()) {
+      toast.error('Please enter a search query');
       return;
     }
 
     setIsSearching(true);
+    saveToHistory(query);
 
     try {
-      if (semanticMode) {
-        const results = await searchService.performSemanticSearch(query);
-        onSemanticSearch?.(results);
+      if (searchType === 'semantic') {
+        const results = await searchService.semanticSearch(query, filters);
+        onSemanticSearch(results);
         toast.success(`Found ${results.length} semantically related documents`);
       } else {
-        const searchOptions: SearchOptions = {
-          query,
-          filters,
-          sortBy,
-          sortOrder,
-          maxResults: 50
-        };
-
-        const { results, totalCount, suggestions: newSuggestions } = await searchService.performSearch(searchOptions);
+        const { results, totalCount } = await searchService.advancedSearch(query, filters);
         onSearchResults(results, totalCount);
-        setSuggestions(newSuggestions);
-        
-        toast.success(`Found ${totalCount} documents`);
+        toast.success(`Found ${totalCount} matching documents`);
       }
-
-      loadSearchHistory();
     } catch (error) {
       console.error('Search error:', error);
       toast.error('Search failed. Please try again.');
@@ -114,167 +115,191 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   };
 
   const handleConfidentialityChange = (level: 'public' | 'confidential' | 'restricted', checked: boolean) => {
+    const currentLevels = (filters.confidentiality as string[]) || [];
     if (checked) {
-      const currentLevels = filters.confidentiality || [];
       handleFilterChange('confidentiality', [...currentLevels, level]);
     } else {
-      const currentLevels = filters.confidentiality || [];
       handleFilterChange('confidentiality', currentLevels.filter(l => l !== level));
     }
   };
 
   const removeFilter = (filterType: keyof SearchFilter, value?: string) => {
-    setFilters(prev => {
-      const newFilters = { ...prev };
-      if (value && Array.isArray(newFilters[filterType])) {
-        newFilters[filterType] = (newFilters[filterType] as string[]).filter(v => v !== value);
-        if ((newFilters[filterType] as string[]).length === 0) {
-          delete newFilters[filterType];
-        }
-      } else {
+    if (value && Array.isArray(filters[filterType])) {
+      const currentArray = filters[filterType] as string[];
+      handleFilterChange(filterType, currentArray.filter(item => item !== value));
+    } else {
+      setFilters(prev => {
+        const newFilters = { ...prev };
         delete newFilters[filterType];
-      }
-      return newFilters;
-    });
+        return newFilters;
+      });
+    }
   };
 
-  const clearAllFilters = () => {
-    setFilters({});
-  };
-
-  const saveCurrentSearch = async () => {
-    if (!saveSearchName.trim()) {
+  const saveSearch = () => {
+    if (!searchName.trim()) {
       toast.error('Please enter a name for the saved search');
       return;
     }
 
-    try {
-      await searchService.saveSearch({
-        name: saveSearchName,
-        query,
-        filters,
-        userId: 'current-user',
-        alertsEnabled: false
-      });
-      
-      toast.success('Search saved successfully');
-      setSaveSearchName('');
-      setShowSaveDialog(false);
-      loadSavedSearches();
-    } catch (error) {
-      toast.error('Failed to save search');
-    }
+    const newSavedSearch = {
+      id: Date.now().toString(),
+      name: searchName,
+      query,
+      filters,
+      createdAt: new Date(),
+      alertsEnabled: false
+    };
+
+    const updated = [...savedSearches, newSavedSearch];
+    setSavedSearches(updated);
+    localStorage.setItem('savedSearches', JSON.stringify(updated));
+    
+    setShowSaveDialog(false);
+    setSearchName('');
+    toast.success('Search saved successfully');
   };
 
-  const loadSavedSearch = (savedSearch: SavedSearch) => {
+  const loadSavedSearch = (savedSearch: any) => {
     setQuery(savedSearch.query);
     setFilters(savedSearch.filters);
-    toast.success(`Loaded saved search: ${savedSearch.name}`);
+    toast.success(`Loaded search: ${savedSearch.name}`);
   };
 
-  const deleteSavedSearch = async (searchId: string) => {
-    try {
-      await searchService.deleteSavedSearch(searchId);
-      loadSavedSearches();
-      toast.success('Saved search deleted');
-    } catch (error) {
-      toast.error('Failed to delete saved search');
-    }
+  const deleteSavedSearch = (id: string) => {
+    const updated = savedSearches.filter(s => s.id !== id);
+    setSavedSearches(updated);
+    localStorage.setItem('savedSearches', JSON.stringify(updated));
+    toast.success('Search deleted');
   };
 
-  const getActiveFiltersCount = () => {
-    return Object.values(filters).reduce((count, filter) => {
-      if (Array.isArray(filter)) return count + filter.length;
-      if (filter) return count + 1;
-      return count;
+  const clearAllFilters = () => {
+    setFilters({});
+    toast.success('All filters cleared');
+  };
+
+  const getActiveFilterCount = () => {
+    return Object.entries(filters).reduce((count, [key, value]) => {
+      if (Array.isArray(value)) {
+        return count + value.length;
+      }
+      return value ? count + 1 : count;
     }, 0);
   };
 
   return (
     <div className="space-y-6">
-      {/* Main Search Bar */}
+      {/* Main Search Interface */}
       <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Enter your legal research query..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="pl-10"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
-              <Button onClick={() => handleSearch()} disabled={isSearching}>
-                <Search className="w-4 h-4 mr-2" />
-                {isSearching ? 'Searching...' : 'Search'}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleSearch(true)} 
-                disabled={isSearching}
-                className="bg-purple-50 border-purple-200 hover:bg-purple-100"
-              >
-                <Brain className="w-4 h-4 mr-2" />
-                Semantic
-              </Button>
-            </div>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="w-5 h-5" />
+            Advanced Legal Research
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter your legal research query..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1"
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <Button 
+              onClick={() => handleSearch()}
+              disabled={isSearching}
+              className="min-w-[100px]"
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => handleSearch('semantic')}
+              disabled={isSearching}
+            >
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Semantic
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowSaveDialog(true)}
+              disabled={!query.trim()}
+            >
+              <Save className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-            {/* Search Options */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="relevance">Sort by Relevance</SelectItem>
-                    <SelectItem value="date">Sort by Date</SelectItem>
-                    <SelectItem value="title">Sort by Title</SelectItem>
-                    <SelectItem value="author">Sort by Author</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSaveDialog(true)}
-                  disabled={!query.trim() && Object.keys(filters).length === 0}
-                >
-                  <Star className="w-4 h-4 mr-2" />
-                  Save Search
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Filter className="w-3 h-3" />
-                  {getActiveFiltersCount()} filters
-                </Badge>
-                {getActiveFiltersCount() > 0 && (
+      <div className="grid lg:grid-cols-4 gap-6">
+        {/* Filters Sidebar */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  Filters {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
+                </CardTitle>
+                {getActiveFilterCount() > 0 && (
                   <Button variant="ghost" size="sm" onClick={clearAllFilters}>
                     Clear All
                   </Button>
                 )}
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filters Panel */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="w-5 h-5" />
-                Filters
-              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Date Range */}
+              <div>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  Date Range
+                </h4>
+                <div className="space-y-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filters.dateRange?.start ? format(filters.dateRange.start, 'PPP') : 'Start date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={filters.dateRange?.start}
+                        onSelect={(date) => handleFilterChange('dateRange', { 
+                          ...filters.dateRange, 
+                          start: date 
+                        })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filters.dateRange?.end ? format(filters.dateRange.end, 'PPP') : 'End date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={filters.dateRange?.end}
+                        onSelect={(date) => handleFilterChange('dateRange', { 
+                          ...filters.dateRange, 
+                          end: date 
+                        })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Practice Areas */}
               <div>
                 <h4 className="font-medium mb-2 flex items-center gap-2">
@@ -286,17 +311,18 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     {practiceAreas.map(area => (
                       <div key={area} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`practice-${area}`}
+                          id={area}
                           checked={filters.practiceAreas?.includes(area) || false}
                           onCheckedChange={(checked) => {
+                            const current = filters.practiceAreas || [];
                             if (checked) {
-                              handleFilterChange('practiceAreas', [...(filters.practiceAreas || []), area]);
+                              handleFilterChange('practiceAreas', [...current, area]);
                             } else {
-                              removeFilter('practiceAreas', area);
+                              handleFilterChange('practiceAreas', current.filter(p => p !== area));
                             }
                           }}
                         />
-                        <label htmlFor={`practice-${area}`} className="text-sm cursor-pointer">
+                        <label htmlFor={area} className="text-sm cursor-pointer">
                           {area}
                         </label>
                       </div>
@@ -318,17 +344,18 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     {jurisdictions.map(jurisdiction => (
                       <div key={jurisdiction} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`jurisdiction-${jurisdiction}`}
+                          id={jurisdiction}
                           checked={filters.jurisdictions?.includes(jurisdiction) || false}
                           onCheckedChange={(checked) => {
+                            const current = filters.jurisdictions || [];
                             if (checked) {
-                              handleFilterChange('jurisdictions', [...(filters.jurisdictions || []), jurisdiction]);
+                              handleFilterChange('jurisdictions', [...current, jurisdiction]);
                             } else {
-                              removeFilter('jurisdictions', jurisdiction);
+                              handleFilterChange('jurisdictions', current.filter(j => j !== jurisdiction));
                             }
                           }}
                         />
-                        <label htmlFor={`jurisdiction-${jurisdiction}`} className="text-sm cursor-pointer">
+                        <label htmlFor={jurisdiction} className="text-sm cursor-pointer">
                           {jurisdiction}
                         </label>
                       </div>
@@ -350,17 +377,18 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     {documentTypes.map(type => (
                       <div key={type} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`doctype-${type}`}
+                          id={type}
                           checked={filters.documentTypes?.includes(type) || false}
                           onCheckedChange={(checked) => {
+                            const current = filters.documentTypes || [];
                             if (checked) {
-                              handleFilterChange('documentTypes', [...(filters.documentTypes || []), type]);
+                              handleFilterChange('documentTypes', [...current, type]);
                             } else {
-                              removeFilter('documentTypes', type);
+                              handleFilterChange('documentTypes', current.filter(d => d !== type));
                             }
                           }}
                         />
-                        <label htmlFor={`doctype-${type}`} className="text-sm cursor-pointer">
+                        <label htmlFor={type} className="text-sm cursor-pointer">
                           {type}
                         </label>
                       </div>
@@ -382,7 +410,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     <div key={level} className="flex items-center space-x-2">
                       <Checkbox
                         id={`confidentiality-${level}`}
-                        checked={filters.confidentiality?.includes(level) || false}
+                        checked={((filters.confidentiality as string[]) || []).includes(level)}
                         onCheckedChange={(checked) => {
                           handleConfidentialityChange(level, checked as boolean);
                         }}
@@ -396,102 +424,113 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               </div>
             </CardContent>
           </Card>
-
-          {/* Active Filters */}
-          {getActiveFiltersCount() > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Active Filters</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {filters.practiceAreas?.map(area => (
-                    <Badge key={area} variant="secondary" className="mr-1 mb-1">
-                      {area}
-                      <button 
-                        onClick={() => removeFilter('practiceAreas', area)}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                  {filters.jurisdictions?.map(jurisdiction => (
-                    <Badge key={jurisdiction} variant="secondary" className="mr-1 mb-1">
-                      {jurisdiction}
-                      <button 
-                        onClick={() => removeFilter('jurisdictions', jurisdiction)}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                  {filters.documentTypes?.map(type => (
-                    <Badge key={type} variant="secondary" className="mr-1 mb-1">
-                      {type}
-                      <button 
-                        onClick={() => removeFilter('documentTypes', type)}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                  {filters.confidentiality?.map(level => (
-                    <Badge key={level} variant="secondary" className="mr-1 mb-1">
-                      {level}
-                      <button 
-                        onClick={() => removeFilter('confidentiality', level)}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
-        {/* Saved Searches & History */}
+        {/* Main Content Area */}
         <div className="lg:col-span-3">
-          <Tabs defaultValue="suggestions" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+          <Tabs defaultValue="filters" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="filters">Active Filters</TabsTrigger>
+              <TabsTrigger value="history">Search History</TabsTrigger>
               <TabsTrigger value="saved">Saved Searches</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="suggestions">
+            <TabsContent value="filters">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Search Suggestions</CardTitle>
+                  <CardTitle className="text-base">Active Search Filters</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {suggestions.length > 0 ? (
-                    <div className="space-y-2">
-                      {suggestions.map((suggestion, index) => (
-                        <Button
-                          key={index}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setQuery(suggestion.text)}
-                          className="justify-start w-full"
+                  <div className="flex flex-wrap gap-2">
+                    {filters.practiceAreas?.map(area => (
+                      <Badge key={area} variant="secondary" className="mr-1 mb-1">
+                        {area}
+                        <button 
+                          onClick={() => removeFilter('practiceAreas', area)}
+                          className="ml-1 hover:text-red-600"
                         >
-                          <Tag className="w-4 h-4 mr-2" />
-                          {suggestion.text}
-                          <Badge variant="outline" className="ml-auto">
-                            {suggestion.category}
-                          </Badge>
-                        </Button>
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                    {filters.jurisdictions?.map(jurisdiction => (
+                      <Badge key={jurisdiction} variant="secondary" className="mr-1 mb-1">
+                        {jurisdiction}
+                        <button 
+                          onClick={() => removeFilter('jurisdictions', jurisdiction)}
+                          className="ml-1 hover:text-red-600"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                    {filters.documentTypes?.map(type => (
+                      <Badge key={type} variant="secondary" className="mr-1 mb-1">
+                        {type}
+                        <button 
+                          onClick={() => removeFilter('documentTypes', type)}
+                          className="ml-1 hover:text-red-600"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                    {((filters.confidentiality as string[]) || []).map(level => (
+                      <Badge key={level} variant="secondary" className="mr-1 mb-1">
+                        {level}
+                        <button 
+                          onClick={() => removeFilter('confidentiality', level)}
+                          className="ml-1 hover:text-red-600"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                    {filters.dateRange && (
+                      <Badge variant="secondary" className="mr-1 mb-1">
+                        Date Range
+                        <button 
+                          onClick={() => removeFilter('dateRange')}
+                          className="ml-1 hover:text-red-600"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    )}
+                    {getActiveFilterCount() === 0 && (
+                      <p className="text-slate-500 text-sm">No active filters</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    Recent Searches
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {searchHistory.length > 0 ? (
+                    <div className="space-y-2">
+                      {searchHistory.map((historyQuery, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded">
+                          <span className="text-sm">{historyQuery}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setQuery(historyQuery)}
+                          >
+                            Use
+                          </Button>
+                        </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-slate-500 text-center py-4">
-                      Perform a search to see intelligent suggestions
-                    </p>
+                    <p className="text-slate-500 text-sm">No search history</p>
                   )}
                 </CardContent>
               </Card>
@@ -500,84 +539,55 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             <TabsContent value="saved">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Saved Searches</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Star className="w-4 h-4" />
+                    Saved Searches
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {savedSearches.length > 0 ? (
-                    <div className="space-y-2">
-                      {savedSearches.map(savedSearch => (
-                        <div key={savedSearch.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{savedSearch.name}</h4>
-                            <p className="text-sm text-slate-600">{savedSearch.query}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline">
-                                {Object.keys(savedSearch.filters).length} filters
-                              </Badge>
-                              {savedSearch.alertsEnabled && (
-                                <Badge variant="outline" className="text-green-600">
-                                  <Bell className="w-3 h-3 mr-1" />
-                                  Alerts On
+                    <div className="space-y-3">
+                      {savedSearches.map((savedSearch) => (
+                        <div key={savedSearch.id} className="border rounded p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{savedSearch.name}</h4>
+                              <p className="text-sm text-slate-600">{savedSearch.query}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline">
+                                  {Object.keys(savedSearch.filters).length} filters
                                 </Badge>
-                              )}
+                                {savedSearch.alertsEnabled && (
+                                  <Badge variant="outline" className="text-green-600">
+                                    <Bell className="w-3 h-3 mr-1" />
+                                    Alerts On
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => loadSavedSearch(savedSearch)}
-                            >
-                              Load
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => deleteSavedSearch(savedSearch.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => loadSavedSearch(savedSearch)}
+                              >
+                                Load
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteSavedSearch(savedSearch.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-slate-500 text-center py-4">
-                      No saved searches yet
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="history">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <History className="w-5 h-5" />
-                    Search History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {searchHistory.length > 0 ? (
-                    <div className="space-y-2">
-                      {searchHistory.map((historyItem, index) => (
-                        <Button
-                          key={index}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setQuery(historyItem)}
-                          className="justify-start w-full"
-                        >
-                          <Clock className="w-4 h-4 mr-2" />
-                          {historyItem}
-                        </Button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-500 text-center py-4">
-                      No search history yet
-                    </p>
+                    <p className="text-slate-500 text-sm">No saved searches</p>
                   )}
                 </CardContent>
               </Card>
@@ -588,22 +598,22 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
       {/* Save Search Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-96">
             <CardHeader>
               <CardTitle>Save Search</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Input
-                placeholder="Enter name for saved search..."
-                value={saveSearchName}
-                onChange={(e) => setSaveSearchName(e.target.value)}
+                placeholder="Enter search name..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
               />
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
                   Cancel
                 </Button>
-                <Button onClick={saveCurrentSearch}>
+                <Button onClick={saveSearch}>
                   Save
                 </Button>
               </div>
