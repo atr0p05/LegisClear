@@ -71,7 +71,7 @@ export const ConversationStats: React.FC<ConversationStatsProps> = ({
                         {model.provider}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        ${model.costPer1kTokens.toFixed(4)}/1k
+                        ${(model.costPerToken * 1000).toFixed(4)}/1k
                       </Badge>
                     </div>
                   </div>
