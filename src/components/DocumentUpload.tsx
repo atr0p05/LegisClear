@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, AlertCircle, CheckCircle, X, FolderPlus, Template } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, X, FolderPlus, FileTemplate } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UploadFile {
@@ -276,7 +276,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
               <input
                 id="folder-input"
                 type="file"
-                webkitdirectory
+                {...({ webkitdirectory: true } as any)}
                 className="hidden"
                 onChange={(e) => e.target.files && handleFileSelection(Array.from(e.target.files))}
               />
@@ -418,7 +418,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Template className="w-5 h-5" />
+                <FileTemplate className="w-5 h-5" />
                 Document Templates
               </CardTitle>
             </CardHeader>
