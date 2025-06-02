@@ -100,14 +100,19 @@ class AIService {
       const prompt = this.buildPrompt(request);
       const response = await this.callAIProvider(model, prompt, request);
       const processingTime = Date.now() - startTime;
+      const tokensUsed = response.tokensUsed || 0;
 
       return {
-        ...response,
+        answer: response.answer,
+        confidence: response.confidence,
+        sources: response.sources,
+        suggestions: response.suggestions,
+        analysis: response.analysis,
         metadata: {
           model: model.id,
           processingTime,
-          tokensUsed: response.metadata?.tokensUsed || 0,
-          cost: (response.metadata?.tokensUsed || 0) * model.costPerToken
+          tokensUsed,
+          cost: tokensUsed * model.costPerToken
         }
       };
     } catch (error) {
@@ -135,7 +140,23 @@ class AIService {
     return prompt;
   }
 
-  private async callAIProvider(model: AIModel, prompt: string, request: AIRequest): Promise<Partial<AIResponse>> {
+  private async callAIProvider(model: AIModel, prompt: string, request: AIRequest): Promise<{
+    answer: string;
+    confidence: number;
+    sources: Array<{
+      title: string;
+      type: 'case' | 'statute' | 'treatise' | 'regulation' | 'contract';
+      relevance: number;
+      snippet?: string;
+    }>;
+    suggestions?: string[];
+    analysis?: {
+      keyPoints: string[];
+      risks?: string[];
+      recommendations?: string[];
+    };
+    tokensUsed: number;
+  }> {
     // Simulate AI API call - in real implementation, this would call actual AI APIs
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
@@ -210,9 +231,7 @@ class AIService {
 
     return {
       ...baseResponse,
-      metadata: {
-        tokensUsed: Math.floor(Math.random() * 1000) + 500
-      }
+      tokensUsed: Math.floor(Math.random() * 1000) + 500
     };
   }
 
