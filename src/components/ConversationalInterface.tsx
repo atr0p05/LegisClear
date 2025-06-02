@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Send, Mic, MicOff, Settings, RefreshCw, Sparkles,
-  MessageSquare, Brain, Clock, TrendingUp
+  MessageSquare, Brain, Clock, TrendingUp, BarChart3
 } from 'lucide-react';
 import { Message } from '@/types/message';
 import { MessageDisplay } from '@/components/MessageDisplay';
@@ -152,7 +152,8 @@ export const ConversationalInterface: React.FC = () => {
           answer: response.answer,
           confidence: response.confidence,
           sources: response.sources,
-          analysis: response.analysis
+          analysis: response.analysis,
+          metadata: response.metadata
         },
         processedQuery: processed,
         metadata: {

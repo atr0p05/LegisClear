@@ -13,8 +13,9 @@ export interface Message {
   metadata?: {
     model: string;
     processingTime: number;
+    tokensUsed: number;
     cost: number;
-    complexity: string;
+    complexity?: string;
     enhanced?: boolean;
   };
 }
