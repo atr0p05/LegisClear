@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
 interface ConfidenceIndicatorProps {
@@ -63,32 +63,30 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
   );
 
   return (
-    <TooltipProvider>
-      <div className="flex items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {content}
-          </TooltipTrigger>
-          <TooltipContent className="max-w-sm">
-            <div className="space-y-2">
-              <p className="font-medium">Confidence Score: {percentage}%</p>
-              <p className="text-sm">{getExplanation()}</p>
-              {showWarning && score < 0.6 && (
-                <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-800">
-                    <strong>Caution:</strong> This information should be verified with additional authoritative sources before making legal decisions.
-                  </p>
-                </div>
-              )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-        
-        {showWarning && score < 0.6 && (
-          <AlertTriangle className="w-4 h-4 text-amber-500" />
-        )}
-      </div>
-    </TooltipProvider>
+    <div className="flex items-center gap-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {content}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-sm">
+          <div className="space-y-2">
+            <p className="font-medium">Confidence Score: {percentage}%</p>
+            <p className="text-sm">{getExplanation()}</p>
+            {showWarning && score < 0.6 && (
+              <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-800">
+                  <strong>Caution:</strong> This information should be verified with additional authoritative sources before making legal decisions.
+                </p>
+              </div>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+      
+      {showWarning && score < 0.6 && (
+        <AlertTriangle className="w-4 h-4 text-amber-500" />
+      )}
+    </div>
   );
 };
