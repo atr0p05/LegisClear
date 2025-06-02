@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,20 +7,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, AlertCircle, CheckCircle, X, FolderPlus, File } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, X, FolderPlus, File, Eye, Scan } from 'lucide-react';
 import { toast } from 'sonner';
+import Tesseract from 'tesseract.js';
 
 interface UploadFile {
   id: string;
   file: File;
   progress: number;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
+  status: 'uploading' | 'processing' | 'ocr_pending' | 'ocr_processing' | 'ocr_complete' | 'ocr_failed' | 'completed' | 'error';
   category?: string;
   tags: string[];
   error?: string;
   version?: number;
   template?: string;
   classification?: string;
+  ocrText?: string;
+  ocrConfidence?: number;
+  needsOcr?: boolean;
 }
 
 interface DocumentUploadProps {
@@ -78,34 +81,98 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
 
   const handleFileSelection = (files: File[]) => {
     const validFiles = files.filter(file => {
-      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'image/jpeg', 'image/png', 'image/tiff'];
       return validTypes.includes(file.type) && file.size <= 50 * 1024 * 1024; // 50MB limit
     });
 
-    const newUploadFiles: UploadFile[] = validFiles.map(file => ({
-      id: Math.random().toString(36).substring(7),
-      file,
-      progress: 0,
-      status: 'uploading',
-      tags: [],
-      version: 1,
-      category: bulkCategory || undefined,
-      classification: classifyDocument(file.name)
-    }));
+    const newUploadFiles: UploadFile[] = validFiles.map(file => {
+      const needsOcr = file.type.startsWith('image/') || (file.type === 'application/pdf' && file.name.toLowerCase().includes('scan'));
+      
+      return {
+        id: Math.random().toString(36).substring(7),
+        file,
+        progress: 0,
+        status: needsOcr ? 'ocr_pending' : 'uploading',
+        tags: [],
+        version: 1,
+        category: bulkCategory || undefined,
+        classification: classifyDocument(file.name),
+        needsOcr
+      };
+    });
 
     setUploadFiles(prev => [...prev, ...newUploadFiles]);
     
-    // Simulate upload and processing
+    // Process files
     newUploadFiles.forEach(uploadFile => {
-      simulateUpload(uploadFile.id);
+      if (uploadFile.needsOcr) {
+        processWithOcr(uploadFile.id);
+      } else {
+        simulateUpload(uploadFile.id);
+      }
     });
 
     if (files.length > validFiles.length) {
-      toast.error(`${files.length - validFiles.length} files were rejected. Only PDF, DOC, DOCX, and TXT files under 50MB are allowed.`);
+      toast.error(`${files.length - validFiles.length} files were rejected. Only PDF, DOCX, TXT, and image files under 50MB are allowed.`);
     }
 
     if (validFiles.length > 0) {
       toast.success(`${validFiles.length} files added to upload queue`);
+    }
+  };
+
+  const processWithOcr = async (fileId: string) => {
+    const uploadFile = uploadFiles.find(f => f.id === fileId);
+    if (!uploadFile) return;
+
+    setUploadFiles(prev => prev.map(file => 
+      file.id === fileId ? { ...file, status: 'ocr_processing' } : file
+    ));
+
+    try {
+      const { data: { text, confidence } } = await Tesseract.recognize(
+        uploadFile.file,
+        'eng',
+        {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              const progress = Math.round(m.progress * 100);
+              setUploadFiles(prev => prev.map(file => 
+                file.id === fileId ? { ...file, progress } : file
+              ));
+            }
+          }
+        }
+      );
+
+      setUploadFiles(prev => prev.map(file => 
+        file.id === fileId ? { 
+          ...file, 
+          status: confidence > 60 ? 'ocr_complete' : 'ocr_failed',
+          ocrText: text,
+          ocrConfidence: Math.round(confidence),
+          progress: 100
+        } : file
+      ));
+
+      if (confidence > 60) {
+        toast.success(`OCR completed with ${Math.round(confidence)}% confidence`);
+        // Continue with normal upload flow
+        setTimeout(() => simulateUpload(fileId), 500);
+      } else {
+        toast.error(`OCR quality too low (${Math.round(confidence)}%). Manual review recommended.`);
+      }
+
+    } catch (error) {
+      console.error('OCR failed:', error);
+      setUploadFiles(prev => prev.map(file => 
+        file.id === fileId ? { 
+          ...file, 
+          status: 'ocr_failed',
+          error: 'OCR processing failed'
+        } : file
+      ));
+      toast.error('OCR processing failed');
     }
   };
 
@@ -194,7 +261,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
       case 'completed':
         return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'error':
+      case 'ocr_failed':
         return <AlertCircle className="w-5 h-5 text-red-500" />;
+      case 'ocr_processing':
+        return <Scan className="w-5 h-5 text-blue-500 animate-pulse" />;
+      case 'ocr_complete':
+        return <Eye className="w-5 h-5 text-green-500" />;
       default:
         return <FileText className="w-5 h-5 text-blue-500" />;
     }
@@ -203,11 +275,16 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
   const getStatusColor = (status: UploadFile['status']) => {
     switch (status) {
       case 'completed':
+      case 'ocr_complete':
         return 'text-green-700';
       case 'error':
+      case 'ocr_failed':
         return 'text-red-700';
       case 'processing':
+      case 'ocr_processing':
         return 'text-yellow-700';
+      case 'ocr_pending':
+        return 'text-blue-700';
       default:
         return 'text-blue-700';
     }
@@ -242,10 +319,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
                 Upload Legal Documents
               </h3>
               <p className="text-slate-600 mb-6">
-                Drag and drop files here, or click to browse. Supports PDF, DOCX, and TXT files up to 50MB.
+                Drag and drop files here, or click to browse. Supports PDF, DOCX, TXT, and image files up to 50MB.
                 <br />
                 <span className="text-sm text-slate-500">
-                  AI-powered classification and metadata extraction included
+                  AI-powered classification, OCR for scanned documents, and metadata extraction included
                 </span>
               </p>
               <div className="flex gap-3 justify-center">
@@ -307,8 +384,24 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
                             <span>{(uploadFile.file.size / 1024 / 1024).toFixed(2)} MB</span>
                             <span>•</span>
                             <span className={getStatusColor(uploadFile.status)}>
-                              {uploadFile.status}
+                              {uploadFile.status.replace('_', ' ')}
                             </span>
+                            {uploadFile.needsOcr && (
+                              <>
+                                <span>•</span>
+                                <Badge variant="outline" className="text-xs">
+                                  OCR Required
+                                </Badge>
+                              </>
+                            )}
+                            {uploadFile.ocrConfidence && (
+                              <>
+                                <span>•</span>
+                                <Badge variant={uploadFile.ocrConfidence > 80 ? "default" : "secondary"} className="text-xs">
+                                  OCR: {uploadFile.ocrConfidence}%
+                                </Badge>
+                              </>
+                            )}
                             {uploadFile.classification && (
                               <>
                                 <span>•</span>
@@ -335,8 +428,26 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
                       </Button>
                     </div>
 
-                    {uploadFile.status === 'uploading' && (
-                      <Progress value={uploadFile.progress} className="w-full" />
+                    {(uploadFile.status === 'uploading' || uploadFile.status === 'ocr_processing') && (
+                      <div className="space-y-2">
+                        <Progress value={uploadFile.progress} className="w-full" />
+                        {uploadFile.status === 'ocr_processing' && (
+                          <p className="text-sm text-slate-600">Processing document with OCR...</p>
+                        )}
+                      </div>
+                    )}
+
+                    {uploadFile.status === 'ocr_failed' && (
+                      <div className="bg-red-50 p-3 rounded border-l-4 border-red-400">
+                        <p className="text-sm text-red-700">
+                          OCR processing failed or quality too low. Document may need manual review.
+                        </p>
+                        {uploadFile.ocrConfidence && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Confidence: {uploadFile.ocrConfidence}% (minimum 60% required)
+                          </p>
+                        )}
+                      </div>
                     )}
 
                     {uploadFile.status === 'completed' && (

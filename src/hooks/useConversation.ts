@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { Message } from '@/types/message';
 import { aiService } from '@/services/AIService';
@@ -23,7 +22,7 @@ export const useConversation = () => {
     setMessages(prev => [...prev, message]);
   }, []);
 
-  const buildQueryContext = useCallback((): QueryContext => {
+  const buildQueryContext = useCallback((activeDocumentIds: string[] = []): QueryContext => {
     const conversationHistory = messages
       .filter(m => m.type === 'user' || m.type === 'ai')
       .slice(-5)
@@ -35,7 +34,7 @@ export const useConversation = () => {
 
     return {
       conversationHistory,
-      documentContext: [],
+      documentContext: activeDocumentIds, // Pass active document IDs
       userPreferences: {
         preferredModel: 'gpt-4o',
         analysisDepth: 'standard'
@@ -43,7 +42,7 @@ export const useConversation = () => {
     };
   }, [messages]);
 
-  const processMessage = useCallback(async (text: string, selectedModel: string) => {
+  const processMessage = useCallback(async (text: string, selectedModel: string, activeDocumentIds: string[] = []) => {
     if (!text.trim() || isProcessing) return;
 
     setIsProcessing(true);
@@ -66,10 +65,14 @@ export const useConversation = () => {
     addMessage(userMessage);
 
     try {
-      const context = buildQueryContext();
+      const context = buildQueryContext(activeDocumentIds);
       
-      // Check cache first
-      const cacheKey = cacheService.generateQueryKey(text, selectedModel, context.conversationHistory.map(h => h.query));
+      // Include active document context in cache key
+      const cacheKey = cacheService.generateQueryKey(
+        text, 
+        selectedModel, 
+        context.conversationHistory.map(h => h.query).concat(activeDocumentIds)
+      );
       const cachedResponse = cacheService.get(cacheKey);
 
       let response;
@@ -85,7 +88,7 @@ export const useConversation = () => {
           duration: 2000
         });
       } else {
-        // Process query with enhanced AI
+        // Process query with enhanced AI and active document context
         const { processed, response: aiResponse } = await queryProcessor.processQuery(text, context);
         response = aiResponse;
         processingTime = Date.now() - startTime;
@@ -94,7 +97,7 @@ export const useConversation = () => {
         cacheService.set(cacheKey, aiResponse, 30 * 60 * 1000); // 30 minutes TTL
       }
 
-      // Record analytics
+      // Record analytics with document context info
       analyticsService.recordQuery({
         queryId: `query-${Date.now()}`,
         query: text,
@@ -104,11 +107,12 @@ export const useConversation = () => {
         confidence: response.confidence,
         timestamp: new Date(),
         model: selectedModel,
-        queryType: 'research', // This could be determined from context
-        complexity: 'medium' // This could be calculated
+        queryType: 'research',
+        complexity: 'medium',
+        documentContextSize: activeDocumentIds.length
       });
 
-      // Create AI response message
+      // Create AI response message with document context info
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
         type: 'ai',
@@ -126,12 +130,22 @@ export const useConversation = () => {
           processingTime: processingTime,
           tokensUsed: response.metadata.tokensUsed,
           cost: response.metadata.cost,
-          complexity: 'medium'
+          complexity: 'medium',
+          activeDocuments: activeDocumentIds.length
         }
       };
 
       addMessage(aiMessage);
       setTotalCost(prev => prev + response.metadata.cost);
+
+      // Show context info if documents were used
+      if (activeDocumentIds.length > 0) {
+        toast({
+          title: 'Context Applied',
+          description: `Response informed by ${activeDocumentIds.length} active document${activeDocumentIds.length !== 1 ? 's' : ''}.`,
+          duration: 3000
+        });
+      }
 
       // Generate intelligent suggestions after a brief delay
       setTimeout(async () => {
@@ -178,7 +192,8 @@ export const useConversation = () => {
         timestamp: new Date(),
         model: selectedModel,
         queryType: 'research',
-        complexity: 'medium'
+        complexity: 'medium',
+        documentContextSize: activeDocumentIds.length
       });
 
       toast({

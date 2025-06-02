@@ -2,9 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  MessageSquare, Brain, RefreshCw, BarChart3, TrendingUp 
-} from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarChart3, Trash2, Settings, FileText } from 'lucide-react';
 
 interface ChatHeaderProps {
   selectedModel: string;
@@ -12,6 +11,8 @@ interface ChatHeaderProps {
   showStats: boolean;
   onToggleStats: () => void;
   onClearConversation: () => void;
+  activeDocumentCount?: number;
+  onToggleContextManager?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -19,41 +20,63 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   queryType,
   showStats,
   onToggleStats,
-  onClearConversation
+  onClearConversation,
+  activeDocumentCount = 0,
+  onToggleContextManager
 }) => {
   return (
     <div className="bg-white border-b border-slate-200 p-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <MessageSquare className="w-6 h-6 text-blue-600" />
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">AI Legal Assistant</h1>
-            <p className="text-sm text-slate-600">Enhanced conversational research platform</p>
-          </div>
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-semibold text-slate-900">Legal Research Assistant</h1>
+          
+          {activeDocumentCount > 0 && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <FileText className="w-3 h-3" />
+              {activeDocumentCount} active
+            </Badge>
+          )}
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Brain className="w-3 h-3" />
-            {selectedModel}
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" />
-            {queryType}
-          </Badge>
+          <Select value={selectedModel}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gpt-4o">GPT-4 Optimized</SelectItem>
+              <SelectItem value="gpt-4o-mini">GPT-4 Mini</SelectItem>
+              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {onToggleContextManager && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleContextManager}
+              className="flex items-center gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              Context
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
             onClick={onToggleStats}
+            className={showStats ? 'bg-slate-100' : ''}
           >
             <BarChart3 className="w-4 h-4" />
           </Button>
+
           <Button
             variant="outline"
             size="sm"
             onClick={onClearConversation}
           >
-            <RefreshCw className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       </div>
