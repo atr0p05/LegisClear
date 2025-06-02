@@ -6,9 +6,10 @@ import { QueryInterface } from '@/components/QueryInterface';
 import { DocumentManager } from '@/components/DocumentManager';
 import { ResultsDisplay } from '@/components/ResultsDisplay';
 import { Dashboard } from '@/components/Dashboard';
+import { ReportsAndAnalytics } from '@/components/ReportsAndAnalytics';
 
 const Index = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'query' | 'documents' | 'results'>('query');
+  const [activeView, setActiveView] = useState<'dashboard' | 'query' | 'documents' | 'results' | 'reports'>('query');
   const [queryResults, setQueryResults] = useState(null);
 
   const handleQuerySubmit = (query: string) => {
@@ -55,6 +56,7 @@ const Index = () => {
         {activeView === 'query' && <QueryInterface onQuerySubmit={handleQuerySubmit} />}
         {activeView === 'documents' && <DocumentManager />}
         {activeView === 'results' && <ResultsDisplay results={queryResults} />}
+        {activeView === 'reports' && <ReportsAndAnalytics />}
       </MainContent>
     </div>
   );
