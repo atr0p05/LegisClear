@@ -10,6 +10,7 @@ export interface QueryMetrics {
   model: string;
   queryType: string;
   complexity: 'low' | 'medium' | 'high';
+  documentContextSize?: number;
 }
 
 export interface PerformanceMetrics {

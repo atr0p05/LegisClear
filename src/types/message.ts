@@ -17,5 +17,6 @@ export interface Message {
     cost: number;
     complexity?: string;
     enhanced?: boolean;
+    activeDocuments?: number;
   };
 }
