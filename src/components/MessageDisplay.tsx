@@ -13,16 +13,18 @@ import { AIResponse } from '@/services/AIService';
 
 interface Message {
   id: string;
-  type: 'user' | 'ai' | 'system';
+  type: 'user' | 'ai' | 'system' | 'suggestion';
   content: string;
   timestamp: Date;
   processedQuery?: ProcessedQuery;
   aiResponse?: AIResponse;
+  suggestions?: Array<{ query: string; reasoning: string; }>;
   metadata?: {
     model: string;
     processingTime: number;
     cost: number;
     complexity: string;
+    enhanced?: boolean;
   };
 }
 
@@ -54,10 +56,12 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({ message, onSugge
       }`}>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
           message.type === 'user' ? 'bg-blue-100' : 
-          message.type === 'system' ? 'bg-orange-100' : 'bg-slate-100'
+          message.type === 'system' ? 'bg-orange-100' : 
+          message.type === 'suggestion' ? 'bg-purple-100' : 'bg-slate-100'
         }`}>
           {message.type === 'user' ? <User className="w-4 h-4" /> : 
            message.type === 'system' ? <Lightbulb className="w-4 h-4" /> :
+           message.type === 'suggestion' ? <Target className="w-4 h-4" /> :
            <Brain className="w-4 h-4" />}
         </div>
         
@@ -67,10 +71,29 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({ message, onSugge
           <div className={`rounded-lg p-4 ${
             message.type === 'user' ? 'bg-blue-600 text-white' : 
             message.type === 'system' ? 'bg-orange-50 border border-orange-200' :
+            message.type === 'suggestion' ? 'bg-purple-50 border border-purple-200' :
             'bg-white border border-slate-200'
           }`}>
             <p className="text-sm leading-relaxed">{message.content}</p>
           </div>
+
+          {/* Suggestions Display */}
+          {message.type === 'suggestion' && message.suggestions && (
+            <div className="flex flex-wrap gap-2 w-full">
+              {message.suggestions.map((suggestion, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => onSuggestionClick(suggestion.query)}
+                  title={suggestion.reasoning}
+                >
+                  {suggestion.query}
+                </Button>
+              ))}
+            </div>
+          )}
           
           {message.type === 'ai' && message.aiResponse && (
             <div className="flex flex-col gap-3 w-full">

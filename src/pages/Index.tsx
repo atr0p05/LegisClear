@@ -15,17 +15,41 @@ const Index = () => {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'research':
-        return <MainContent />;
+        return (
+          <MainContent>
+            <AIEnhancementDashboard />
+          </MainContent>
+        );
       case 'documents':
-        return <DocumentManager />;
+        return (
+          <MainContent>
+            <DocumentManager />
+          </MainContent>
+        );
       case 'reports':
-        return <ReportsAndAnalytics />;
+        return (
+          <MainContent>
+            <ReportsAndAnalytics />
+          </MainContent>
+        );
       case 'collaboration':
-        return <CollaborationDashboard />;
+        return (
+          <MainContent>
+            <CollaborationDashboard />
+          </MainContent>
+        );
       case 'ai-enhancement':
-        return <AIEnhancementDashboard />;
+        return (
+          <MainContent>
+            <AIEnhancementDashboard />
+          </MainContent>
+        );
       default:
-        return <MainContent />;
+        return (
+          <MainContent>
+            <AIEnhancementDashboard />
+          </MainContent>
+        );
     }
   };
 
