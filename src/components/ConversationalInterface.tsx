@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  RefreshCw, Brain, DollarSign
+  RefreshCw, Brain, DollarSign, Sparkles, Zap
 } from 'lucide-react';
 import { queryProcessor, QueryContext, ProcessedQuery } from '@/services/QueryProcessor';
 import { aiService, AIResponse, AIModel } from '@/services/AIService';
+import { enhancedAIService } from '@/services/EnhancedAIService';
 import { toast } from 'sonner';
 import { MessageDisplay } from './MessageDisplay';
 import { QueryInput } from './QueryInput';
@@ -17,16 +18,18 @@ import { ConversationStats } from './ConversationStats';
 
 interface Message {
   id: string;
-  type: 'user' | 'ai' | 'system';
+  type: 'user' | 'ai' | 'system' | 'suggestion';
   content: string;
   timestamp: Date;
   processedQuery?: ProcessedQuery;
   aiResponse?: AIResponse;
+  suggestions?: Array<{ query: string; reasoning: string; }>;
   metadata?: {
     model: string;
     processingTime: number;
     cost: number;
     complexity: string;
+    enhanced?: boolean;
   };
 }
 
@@ -39,6 +42,7 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('auto');
   const [analysisDepth, setAnalysisDepth] = useState<'quick' | 'standard' | 'comprehensive'>('standard');
+  const [useEnhancedAI, setUseEnhancedAI] = useState(true);
   const [queryContext, setQueryContext] = useState<QueryContext>({
     conversationHistory: [],
     documentContext: [],
@@ -84,21 +88,55 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
     setIsLoading(true);
 
     try {
+      let enhancedQuery = inputValue;
+      
+      // Use enhanced AI if enabled
+      if (useEnhancedAI) {
+        const enhancement = await enhancedAIService.enhanceQuery(inputValue);
+        if (enhancement.improvements.length > 0) {
+          enhancedQuery = enhancement.enhancedQuery;
+          
+          const enhancementMessage: Message = {
+            id: (Date.now() + 0.3).toString(),
+            type: 'system',
+            content: `Query enhanced: ${enhancement.improvements.join(', ')}`,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, enhancementMessage]);
+        }
+      }
+
       // Get query suggestions first
-      const suggestions = await queryProcessor.suggestQueryImprovements(inputValue);
+      const suggestions = await queryProcessor.suggestQueryImprovements(enhancedQuery);
       
       if (suggestions.suggestions.length > 0) {
         const suggestionMessage: Message = {
           id: (Date.now() + 0.5).toString(),
-          type: 'system',
-          content: `Query suggestions: ${suggestions.suggestions.join('; ')}`,
-          timestamp: new Date()
+          type: 'suggestion',
+          content: 'AI-generated query suggestions:',
+          timestamp: new Date(),
+          suggestions: suggestions.suggestions.map(s => ({ query: s, reasoning: 'Optimized for better results' }))
         };
         setMessages(prev => [...prev, suggestionMessage]);
       }
 
+      // Generate smart search suggestions if using enhanced AI
+      if (useEnhancedAI) {
+        const smartSuggestions = await enhancedAIService.generateSearchSuggestions(enhancedQuery);
+        if (smartSuggestions.length > 0) {
+          const smartSuggestionMessage: Message = {
+            id: (Date.now() + 0.7).toString(),
+            type: 'suggestion',
+            content: 'Smart search suggestions:',
+            timestamp: new Date(),
+            suggestions: smartSuggestions.map(s => ({ query: s.query, reasoning: s.reasoning }))
+          };
+          setMessages(prev => [...prev, smartSuggestionMessage]);
+        }
+      }
+
       // Process the query with enhanced AI capabilities
-      const { processed, response } = await queryProcessor.processQuery(inputValue, queryContext);
+      const { processed, response } = await queryProcessor.processQuery(enhancedQuery, queryContext);
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -111,12 +149,31 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
           model: response.metadata.model,
           processingTime: response.metadata.processingTime,
           cost: response.metadata.cost,
-          complexity: processed.estimatedComplexity
+          complexity: processed.estimatedComplexity,
+          enhanced: useEnhancedAI
         }
       };
 
       setMessages(prev => [...prev, aiMessage]);
       setTotalCost(prev => prev + response.metadata.cost);
+
+      // Get research recommendations if using enhanced AI
+      if (useEnhancedAI && analysisDepth !== 'quick') {
+        try {
+          const recommendations = await enhancedAIService.getResearchRecommendations(enhancedQuery);
+          if (recommendations.recommendations.length > 0) {
+            const recMessage: Message = {
+              id: (Date.now() + 1.5).toString(),
+              type: 'system',
+              content: `Research recommendations: ${recommendations.recommendations.map(r => r.title).join(', ')}. Suggested next steps: ${recommendations.nextSteps.slice(0, 2).join(', ')}.`,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, recMessage]);
+          }
+        } catch (error) {
+          console.error('Error getting recommendations:', error);
+        }
+      }
 
       // Update conversation context
       setQueryContext(prev => ({
@@ -124,7 +181,7 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
         conversationHistory: [
           ...prev.conversationHistory.slice(-4), // Keep last 5 interactions
           {
-            query: inputValue,
+            query: enhancedQuery,
             response: response.answer,
             timestamp: new Date()
           }
@@ -169,10 +226,21 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="w-6 h-6 text-blue-600" />
             Advanced Legal AI Assistant
+            {useEnhancedAI && <Sparkles className="w-5 h-5 text-purple-500" />}
           </h2>
-          <p className="text-slate-600">Intelligent legal research with multi-model AI analysis</p>
+          <p className="text-slate-600">
+            {useEnhancedAI ? 'Intelligent legal research with enhanced ML analysis' : 'Standard AI legal research assistance'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={useEnhancedAI ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseEnhancedAI(!useEnhancedAI)}
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            Enhanced AI
+          </Button>
           <Badge variant="outline" className="flex items-center gap-1">
             <DollarSign className="w-3 h-3" />
             ${totalCost.toFixed(4)}
@@ -199,14 +267,21 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
                 {messages.length === 0 && (
                   <div className="text-center text-slate-500 py-8">
                     <Brain className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                    <h3 className="text-lg font-medium mb-2">Advanced AI Legal Research</h3>
-                    <p className="text-sm">Ask complex legal questions and get intelligent, multi-source analysis with citations and recommendations.</p>
+                    <h3 className="text-lg font-medium mb-2">
+                      {useEnhancedAI ? 'Enhanced AI Legal Research' : 'AI Legal Research'}
+                    </h3>
+                    <p className="text-sm">
+                      {useEnhancedAI 
+                        ? 'Ask complex legal questions and get intelligent, ML-enhanced analysis with predictions and smart recommendations.'
+                        : 'Ask legal questions and get AI-powered analysis with citations and recommendations.'
+                      }
+                    </p>
                     <div className="grid grid-cols-2 gap-2 mt-4 max-w-md mx-auto">
                       {[
-                        'Analyze contract liability clauses',
-                        'Research precedents for employment law',
-                        'Compare jurisdictional variations',
-                        'Evaluate regulatory compliance'
+                        'Predict contract dispute outcome',
+                        'Analyze employment law precedents',
+                        'Classify legal document types',
+                        'Smart search optimization'
                       ].map((example) => (
                         <Button
                           key={example}
@@ -240,7 +315,9 @@ export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = (
                         <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                         <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        <span className="text-sm text-slate-500 ml-2">Processing with advanced AI...</span>
+                        <span className="text-sm text-slate-500 ml-2">
+                          {useEnhancedAI ? 'Processing with enhanced AI...' : 'Processing with AI...'}
+                        </span>
                       </div>
                     </div>
                   </div>
