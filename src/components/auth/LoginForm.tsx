@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Shield, Eye, EyeOff } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -21,7 +21,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   onSwitchToReset 
 }) => {
   const { login, isLoading } = useAuth();
-  const { toast } = useToast();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -33,46 +32,65 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [requiresMfa, setRequiresMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('LoginForm render - requiresMfa:', requiresMfa, 'isLoading:', isLoading);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    console.log('Form submitted with data:', { 
+      email: formData.email, 
+      hasPassword: !!formData.password,
+      hasMfaCode: !!formData.mfaCode,
+      requiresMfa 
+    });
+
     if (!formData.email || !formData.password) {
-      setError('Please fill in all required fields');
+      const errorMsg = 'Please fill in all required fields';
+      setError(errorMsg);
+      console.log('Validation error:', errorMsg);
       return;
     }
 
     if (requiresMfa && !formData.mfaCode) {
-      setError('Please enter your MFA code');
+      const errorMsg = 'Please enter your MFA code';
+      setError(errorMsg);
+      console.log('MFA validation error:', errorMsg);
       return;
     }
 
+    console.log('Calling login function...');
     const result = await login(
       formData.email, 
       formData.password, 
       requiresMfa ? formData.mfaCode : undefined
     );
 
+    console.log('Login result:', result);
+
     if (result.success) {
-      toast({
-        title: "Login successful",
-        description: "Welcome back to LegalAI Pro",
-      });
+      toast.success("Login successful - Welcome back to LegalAI Pro");
+      console.log('Login successful, calling onSuccess');
       onSuccess?.();
     } else if (result.requiresMfa) {
+      console.log('MFA required, updating state');
       setRequiresMfa(true);
-      toast({
-        title: "MFA Required",
-        description: "Please enter your multi-factor authentication code",
-      });
+      toast.info("MFA Required - Please enter your multi-factor authentication code");
     } else {
-      setError(result.error || 'Login failed');
+      const errorMsg = result.error || 'Login failed';
+      console.log('Login failed:', errorMsg);
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
+    console.log(`Input changed - ${field}:`, value);
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError(null);
+    if (error) {
+      console.log('Clearing error due to input change');
+      setError(null);
+    }
   };
 
   return (
@@ -126,6 +144,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 size="sm"
                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -137,18 +156,22 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </div>
 
           {requiresMfa && (
-            <div className="space-y-2">
+            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
               <Label htmlFor="mfaCode">Multi-Factor Authentication Code</Label>
               <Input
                 id="mfaCode"
                 type="text"
-                placeholder="Enter 6-digit code"
+                placeholder="Enter 6-digit code (123456)"
                 value={formData.mfaCode}
                 onChange={(e) => handleInputChange('mfaCode', e.target.value)}
                 disabled={isLoading}
                 maxLength={6}
                 required
+                autoFocus
               />
+              <p className="text-sm text-muted-foreground">
+                For demo purposes, use: <strong>123456</strong>
+              </p>
             </div>
           )}
 
@@ -160,12 +183,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {requiresMfa ? 'Verifying...' : 'Signing in...'}
+                {requiresMfa ? 'Verifying MFA...' : 'Signing in...'}
               </>
             ) : (
               requiresMfa ? 'Verify & Sign In' : 'Sign In'
             )}
           </Button>
+
+          {!requiresMfa && (
+            <div className="text-sm text-center text-muted-foreground bg-muted p-3 rounded-md">
+              <strong>Demo Credentials:</strong><br />
+              Email: sarah.mitchell@lawfirm.com<br />
+              Password: password123
+            </div>
+          )}
 
           <div className="flex flex-col space-y-2 text-sm text-center">
             <Button
@@ -173,6 +204,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               variant="link"
               onClick={onSwitchToReset}
               className="text-sm"
+              disabled={isLoading}
             >
               Forgot your password?
             </Button>
@@ -184,6 +216,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 variant="link"
                 onClick={onSwitchToSignup}
                 className="text-sm p-0 h-auto"
+                disabled={isLoading}
               >
                 Sign up
               </Button>
