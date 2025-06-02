@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Download, Share, Eye, BookOpen, Calendar, User, Tag, MessageSquare, Highlighter, Bookmark, GitBranch, Link } from 'lucide-react';
+import { FileText, Download, Share, Eye, BookOpen, Calendar, User, Tag, MessageSquare, Highlighter, Bookmark, GitBranch, Link, MapPin, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { DocumentVersioning } from './DocumentVersioning';
 import { DocumentRelationships } from './DocumentRelationships';
@@ -39,15 +38,38 @@ interface Annotation {
   color: string;
   createdBy: string;
   createdAt: string;
+  location?: {
+    pageNumber?: number;
+    paragraphId?: string;
+    charOffsetStart?: number;
+    charOffsetEnd?: number;
+  };
 }
 
 interface DocumentViewerProps {
   document: DocumentMetadata;
   content?: string;
+  navigationTarget?: {
+    pageNumber?: number;
+    paragraphId?: string;
+    charOffsetStart?: number;
+    charOffsetEnd?: number;
+    sectionTitle?: string;
+  };
+  onNavigationComplete?: () => void;
 }
 
-export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, content }) => {
+export const DocumentViewer: React.FC<DocumentViewerProps> = ({ 
+  document, 
+  content, 
+  navigationTarget,
+  onNavigationComplete 
+}) => {
   const [activeTab, setActiveTab] = useState('preview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ position: number; text: string }>>([]);
+  const [highlightedText, setHighlightedText] = useState<string>('');
+  const contentRef = useRef<HTMLDivElement>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([
     {
       id: '1',
@@ -77,12 +99,137 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
   });
   const [showAddAnnotation, setShowAddAnnotation] = useState(false);
 
+  // Navigation effect
+  useEffect(() => {
+    if (navigationTarget && contentRef.current && activeTab === 'preview') {
+      navigateToLocation(navigationTarget);
+    }
+  }, [navigationTarget, activeTab]);
+
+  const navigateToLocation = (target: typeof navigationTarget) => {
+    if (!target || !contentRef.current) return;
+
+    // Scroll to specific page or section
+    if (target.pageNumber) {
+      // For PDF-like content, scroll to page
+      const pageElement = contentRef.current.querySelector(`[data-page="${target.pageNumber}"]`);
+      if (pageElement) {
+        pageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Highlight specific paragraph or text range
+    if (target.paragraphId) {
+      const paragraphElement = contentRef.current.querySelector(`[data-paragraph="${target.paragraphId}"]`);
+      if (paragraphElement) {
+        paragraphElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        paragraphElement.classList.add('bg-yellow-200', 'animate-pulse');
+        setTimeout(() => {
+          paragraphElement.classList.remove('animate-pulse');
+          setTimeout(() => {
+            paragraphElement.classList.remove('bg-yellow-200');
+          }, 3000);
+        }, 1000);
+      }
+    }
+
+    // Handle text range highlighting
+    if (target.charOffsetStart && target.charOffsetEnd && content) {
+      const targetText = content.slice(target.charOffsetStart, target.charOffsetEnd);
+      setHighlightedText(targetText);
+      
+      // Find and highlight the text in the DOM
+      setTimeout(() => {
+        const walker = document.createTreeWalker(
+          contentRef.current!,
+          NodeFilter.SHOW_TEXT,
+          null
+        );
+        
+        let node;
+        while (node = walker.nextNode()) {
+          const text = node.textContent || '';
+          if (text.includes(targetText)) {
+            const range = document.createRange();
+            const startIndex = text.indexOf(targetText);
+            range.setStart(node, startIndex);
+            range.setEnd(node, startIndex + targetText.length);
+            
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            
+            // Create highlight span
+            const span = document.createElement('span');
+            span.className = 'bg-yellow-300 animate-pulse border border-yellow-500 rounded px-1';
+            span.style.animation = 'pulse 2s infinite';
+            
+            try {
+              range.surroundContents(span);
+              span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              
+              // Remove highlight after delay
+              setTimeout(() => {
+                if (span.parentNode) {
+                  span.outerHTML = span.innerHTML;
+                }
+              }, 5000);
+            } catch (e) {
+              console.log('Could not highlight text range');
+            }
+            break;
+          }
+        }
+      }, 100);
+    }
+
+    onNavigationComplete?.();
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    if (!term.trim() || !content) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results: Array<{ position: number; text: string }> = [];
+    const regex = new RegExp(term, 'gi');
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+      const start = Math.max(0, match.index - 50);
+      const end = Math.min(content.length, match.index + match[0].length + 50);
+      const context = content.slice(start, end);
+      
+      results.push({
+        position: match.index,
+        text: context
+      });
+    }
+
+    setSearchResults(results);
+  };
+
   const handleDownload = () => {
     toast.success(`Downloading ${document.title}...`);
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(`Document: ${document.title} - ${document.id}`);
+    const shareUrl = `${window.location.origin}/document/${document.id}`;
+    if (navigationTarget) {
+      const params = new URLSearchParams();
+      if (navigationTarget.pageNumber) params.set('page', navigationTarget.pageNumber.toString());
+      if (navigationTarget.paragraphId) params.set('paragraph', navigationTarget.paragraphId);
+      if (navigationTarget.sectionTitle) params.set('section', navigationTarget.sectionTitle);
+      if (params.toString()) {
+        navigator.clipboard.writeText(`${shareUrl}?${params.toString()}`);
+      } else {
+        navigator.clipboard.writeText(shareUrl);
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+    }
     toast.success('Document link copied to clipboard');
   };
 
@@ -96,7 +243,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
       id: Date.now().toString(),
       ...newAnnotation,
       createdBy: 'Current User',
-      createdAt: new Date().toISOString().split('T')[0]
+      createdAt: new Date().toISOString().split('T')[0],
+      location: navigationTarget ? {
+        pageNumber: navigationTarget.pageNumber,
+        paragraphId: navigationTarget.paragraphId,
+        charOffsetStart: navigationTarget.charOffsetStart,
+        charOffsetEnd: navigationTarget.charOffsetEnd
+      } : undefined
     };
 
     setAnnotations(prev => [...prev, annotation]);
@@ -174,6 +327,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
               {document.version && (
                 <Badge variant="outline">v{document.version}</Badge>
               )}
+              {navigationTarget && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Location Target
+                </Badge>
+              )}
             </DialogTitle>
             <div className="flex items-center gap-2">
               <Badge className={getConfidentialityColor(document.confidentiality)}>
@@ -202,9 +361,26 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
 
           <TabsContent value="preview" className="flex-1">
             <Card className="h-full">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Search within document..."
+                      value={searchTerm}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  {searchResults.length > 0 && (
+                    <Badge variant="secondary">
+                      {searchResults.length} results
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
               <CardContent className="p-0 h-full">
                 <ScrollArea className="h-full">
-                  <div className="p-6">
+                  <div ref={contentRef} className="p-6">
                     {content ? (
                       <div className="prose prose-slate max-w-none">
                         <pre className="whitespace-pre-wrap font-mono text-sm">

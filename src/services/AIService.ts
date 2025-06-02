@@ -1,4 +1,3 @@
-
 export interface AIModel {
   id: string;
   name: string;
@@ -18,9 +17,24 @@ export interface AIRequest {
   model?: string;
 }
 
+export interface SourceLocation {
+  pageNumber?: number;
+  paragraphId?: string;
+  charOffsetStart?: number;
+  charOffsetEnd?: number;
+  sectionTitle?: string;
+  lineNumber?: number;
+}
+
 export interface AIResponse {
   answer: string;
   confidence: number;
+  confidenceFactors?: {
+    sourceQuality: number;
+    sourceConsistency: number;
+    queryRelevance: number;
+    factors: string[];
+  };
   sources: Array<{
     title: string;
     type: 'case' | 'statute' | 'treatise' | 'regulation' | 'contract';
@@ -28,6 +42,9 @@ export interface AIResponse {
     page?: number;
     snippet?: string;
     url?: string;
+    location?: SourceLocation;
+    documentId?: string;
+    citationText?: string;
   }>;
   suggestions?: string[];
   analysis?: {
@@ -35,6 +52,11 @@ export interface AIResponse {
     risks?: string[];
     recommendations?: string[];
     citations?: string[];
+  };
+  reasoning?: {
+    retrievalProcess: string;
+    synthesisApproach: string;
+    confidenceRationale: string;
   };
   metadata: {
     model: string;
@@ -105,9 +127,11 @@ class AIService {
       return {
         answer: response.answer,
         confidence: response.confidence,
+        confidenceFactors: response.confidenceFactors,
         sources: response.sources,
         suggestions: response.suggestions,
         analysis: response.analysis,
+        reasoning: response.reasoning,
         metadata: {
           model: model.id,
           processingTime,
@@ -143,11 +167,20 @@ class AIService {
   private async callAIProvider(model: AIModel, prompt: string, request: AIRequest): Promise<{
     answer: string;
     confidence: number;
+    confidenceFactors?: {
+      sourceQuality: number;
+      sourceConsistency: number;
+      queryRelevance: number;
+      factors: string[];
+    };
     sources: Array<{
       title: string;
       type: 'case' | 'statute' | 'treatise' | 'regulation' | 'contract';
       relevance: number;
       snippet?: string;
+      location?: SourceLocation;
+      documentId?: string;
+      citationText?: string;
     }>;
     suggestions?: string[];
     analysis?: {
@@ -155,25 +188,65 @@ class AIService {
       risks?: string[];
       recommendations?: string[];
     };
+    reasoning?: {
+      retrievalProcess: string;
+      synthesisApproach: string;
+      confidenceRationale: string;
+    };
     tokensUsed: number;
   }> {
-    // Simulate AI API call - in real implementation, this would call actual AI APIs
+    // Simulate AI API call with enhanced location data
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
     const mockResponses = {
       research: {
-        answer: "Based on extensive legal research, the primary precedent for this matter is established in Johnson v. State Corp (2019), which held that contractual obligations must be clearly defined and mutually agreed upon. The relevant statutory framework includes Section 12-304 of the Commercial Code, which requires written consent for material modifications. Key considerations include: 1) The doctrine of mutual assent, 2) Statutory compliance requirements, and 3) Potential equitable remedies available.",
+        answer: "Based on extensive legal research, the primary precedent for this matter is established in Johnson v. State Corp (2019), which held that contractual obligations must be clearly defined and mutually agreed upon. The relevant statutory framework includes Section 12-304 of the Commercial Code, which requires written consent for material modifications.",
         confidence: 0.89,
+        confidenceFactors: {
+          sourceQuality: 0.92,
+          sourceConsistency: 0.88,
+          queryRelevance: 0.87,
+          factors: [
+            "Multiple authoritative sources found",
+            "Recent case law directly on point",
+            "Consistent statutory interpretation across jurisdictions"
+          ]
+        },
         sources: [
-          { title: "Johnson v. State Corp (2019)", type: "case" as const, relevance: 0.95, snippet: "Contractual obligations must be clearly defined..." },
-          { title: "Commercial Code § 12-304", type: "statute" as const, relevance: 0.87, snippet: "Written consent required for modifications..." },
-          { title: "Restatement of Contracts § 17", type: "treatise" as const, relevance: 0.82 }
+          { 
+            title: "Johnson v. State Corp (2019)", 
+            type: "case" as const, 
+            relevance: 0.95, 
+            snippet: "Contractual obligations must be clearly defined and mutually agreed upon by all parties...",
+            location: {
+              pageNumber: 14,
+              paragraphId: "para-23",
+              charOffsetStart: 1240,
+              charOffsetEnd: 1890,
+              sectionTitle: "Analysis of Contractual Requirements"
+            },
+            documentId: "doc-johnson-2019",
+            citationText: "Johnson v. State Corp, 785 F.3d 456, 461 (9th Cir. 2019)"
+          },
+          { 
+            title: "Commercial Code § 12-304", 
+            type: "statute" as const, 
+            relevance: 0.87, 
+            snippet: "Written consent required for modifications affecting material terms...",
+            location: {
+              pageNumber: 304,
+              paragraphId: "section-12-304",
+              sectionTitle: "Modification Requirements"
+            },
+            documentId: "doc-commercial-code",
+            citationText: "Commercial Code § 12-304"
+          }
         ],
-        suggestions: [
-          "What are the exceptions to the written consent requirement?",
-          "How has this precedent been applied in recent cases?",
-          "What equitable remedies might be available here?"
-        ]
+        reasoning: {
+          retrievalProcess: "Retrieved 12 relevant documents, filtered by relevance >0.8",
+          synthesisApproach: "Combined case law precedent with statutory requirements",
+          confidenceRationale: "High confidence due to direct precedent and clear statutory language"
+        }
       },
       analysis: {
         answer: "Legal analysis reveals several critical issues requiring immediate attention. The contract contains potentially unenforceable provisions under current commercial law standards. Primary concerns include unconscionable terms in Section 4.2, inadequate consideration clauses, and potential conflicts with state regulatory requirements.",
