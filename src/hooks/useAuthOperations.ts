@@ -7,8 +7,8 @@ export const useAuthOperations = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const login = async (email: string, password: string, mfaCode?: string): Promise<LoginResult> => {
-    console.log('AuthOperations login called with:', { email, hasPassword: !!password, hasMfaCode: !!mfaCode });
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    console.log('AuthOperations login called with:', { email, hasPassword: !!password });
     
     try {
       setIsLoading(true);
@@ -19,23 +19,10 @@ export const useAuthOperations = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log('AuthOperations: Mock API delay completed');
       
-      // Mock validation
+      // Mock validation - simple login without MFA
       console.log('AuthOperations: Validating credentials...');
       if (email === 'sarah.mitchell@lawfirm.com' && password === 'password123') {
-        console.log('AuthOperations: Credentials are correct');
-        
-        if (!mfaCode) {
-          console.log('AuthOperations: No MFA code provided, requiring MFA');
-          return { success: false, requiresMfa: true };
-        }
-        
-        console.log('AuthOperations: Validating MFA code:', mfaCode);
-        if (mfaCode !== '123456') {
-          console.log('AuthOperations: Invalid MFA code');
-          return { success: false, error: 'Invalid MFA code' };
-        }
-
-        console.log('AuthOperations: MFA code is correct, logging in user');
+        console.log('AuthOperations: Credentials are correct, logging in user');
         const mockUser = createMockUser(email);
         setStoredToken('mock_token_123');
         setUser(mockUser);

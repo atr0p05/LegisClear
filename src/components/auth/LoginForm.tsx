@@ -24,15 +24,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    mfaCode: ''
+    password: ''
   });
   
   const [showPassword, setShowPassword] = useState(false);
-  const [requiresMfa, setRequiresMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  console.log('LoginForm render - requiresMfa:', requiresMfa, 'isLoading:', isLoading);
+  console.log('LoginForm render - isLoading:', isLoading);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +38,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
     console.log('Form submitted with data:', { 
       email: formData.email, 
-      hasPassword: !!formData.password,
-      hasMfaCode: !!formData.mfaCode,
-      requiresMfa 
+      hasPassword: !!formData.password
     });
 
     if (!formData.email || !formData.password) {
@@ -52,19 +48,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       return;
     }
 
-    if (requiresMfa && !formData.mfaCode) {
-      const errorMsg = 'Please enter your MFA code';
-      setError(errorMsg);
-      console.log('MFA validation error:', errorMsg);
-      return;
-    }
-
     console.log('Calling login function...');
-    const result = await login(
-      formData.email, 
-      formData.password, 
-      requiresMfa ? formData.mfaCode : undefined
-    );
+    const result = await login(formData.email, formData.password);
 
     console.log('Login result:', result);
 
@@ -75,13 +60,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       });
       console.log('Login successful, calling onSuccess');
       onSuccess?.();
-    } else if (result.requiresMfa) {
-      console.log('MFA required, updating requiresMfa state to true');
-      setRequiresMfa(true);
-      toast({
-        title: "MFA Required",
-        description: "Please enter your multi-factor authentication code",
-      });
     } else {
       const errorMsg = result.error || 'Login failed';
       console.log('Login failed:', errorMsg);
@@ -165,29 +143,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             </div>
           </div>
 
-          {requiresMfa && (
-            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300 border-2 border-yellow-300 bg-yellow-50 p-4 rounded-md">
-              <Label htmlFor="mfaCode" className="text-lg font-semibold text-yellow-800">
-                🔐 Multi-Factor Authentication Required
-              </Label>
-              <Input
-                id="mfaCode"
-                type="text"
-                placeholder="Enter 6-digit code (123456)"
-                value={formData.mfaCode}
-                onChange={(e) => handleInputChange('mfaCode', e.target.value)}
-                disabled={isLoading}
-                maxLength={6}
-                required
-                autoFocus
-                className="border-yellow-400 focus:border-yellow-500"
-              />
-              <p className="text-sm text-yellow-700 font-medium">
-                For demo purposes, use: <strong className="bg-yellow-200 px-1 rounded">123456</strong>
-              </p>
-            </div>
-          )}
-
           <Button 
             type="submit" 
             className="w-full" 
@@ -196,20 +151,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {requiresMfa ? 'Verifying MFA...' : 'Signing in...'}
+                Signing in...
               </>
             ) : (
-              requiresMfa ? 'Verify & Sign In' : 'Sign In'
+              'Sign In'
             )}
           </Button>
 
-          {!requiresMfa && (
-            <div className="text-sm text-center text-muted-foreground bg-muted p-3 rounded-md">
-              <strong>Demo Credentials:</strong><br />
-              Email: sarah.mitchell@lawfirm.com<br />
-              Password: password123
-            </div>
-          )}
+          <div className="text-sm text-center text-muted-foreground bg-muted p-3 rounded-md">
+            <strong>Demo Credentials:</strong><br />
+            Email: sarah.mitchell@lawfirm.com<br />
+            Password: password123
+          </div>
 
           <div className="flex flex-col space-y-2 text-sm text-center">
             <Button
