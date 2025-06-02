@@ -6,6 +6,7 @@ import { DocumentManager } from '@/components/DocumentManager';
 import { ReportsAndAnalytics } from '@/components/ReportsAndAnalytics';
 import { CollaborationDashboard } from '@/components/collaboration/CollaborationDashboard';
 import { AIEnhancementDashboard } from '@/components/AIEnhancementDashboard';
+import { ConversationalInterface } from '@/components/ConversationalInterface';
 
 export type PageType = 'research' | 'documents' | 'reports' | 'collaboration' | 'ai-enhancement';
 
@@ -17,7 +18,7 @@ const Index = () => {
       case 'research':
         return (
           <MainContent>
-            <AIEnhancementDashboard />
+            <ConversationalInterface />
           </MainContent>
         );
       case 'documents':
@@ -47,7 +48,7 @@ const Index = () => {
       default:
         return (
           <MainContent>
-            <AIEnhancementDashboard />
+            <ConversationalInterface />
           </MainContent>
         );
     }

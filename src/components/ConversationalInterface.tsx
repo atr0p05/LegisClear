@@ -1,335 +1,375 @@
+
 import React, { useState, useRef, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  RefreshCw, Brain, DollarSign, Sparkles, Zap
+  Send, Mic, MicOff, Settings, RefreshCw, Sparkles,
+  MessageSquare, Brain, Clock, TrendingUp
 } from 'lucide-react';
-import { queryProcessor, QueryContext, ProcessedQuery } from '@/services/QueryProcessor';
-import { aiService, AIResponse, AIModel } from '@/services/AIService';
-import { enhancedAIService } from '@/services/EnhancedAIService';
-import { toast } from 'sonner';
-import { MessageDisplay } from './MessageDisplay';
-import { QueryInput } from './QueryInput';
-import { ConversationStats } from './ConversationStats';
 import { Message } from '@/types/message';
+import { MessageDisplay } from '@/components/MessageDisplay';
+import { ConversationStats } from '@/components/ConversationStats';
+import { aiService, AIRequest } from '@/services/AIService';
+import { enhancedAIService } from '@/services/EnhancedAIService';
+import { queryProcessor, QueryContext } from '@/services/QueryProcessor';
+import { useToast } from '@/hooks/use-toast';
 
-interface ConversationalInterfaceProps {
-  onQuerySubmit?: (query: string, context?: string[]) => Promise<any>;
-}
-
-export const ConversationalInterface: React.FC<ConversationalInterfaceProps> = ({ onQuerySubmit }) => {
+export const ConversationalInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('auto');
-  const [analysisDepth, setAnalysisDepth] = useState<'quick' | 'standard' | 'comprehensive'>('standard');
-  const [useEnhancedAI, setUseEnhancedAI] = useState(true);
-  const [queryContext, setQueryContext] = useState<QueryContext>({
-    conversationHistory: [],
-    documentContext: [],
-    userPreferences: {
-      analysisDepth: 'standard'
-    }
-  });
+  const [inputText, setInputText] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [queryType, setQueryType] = useState<'research' | 'analysis' | 'contract' | 'citation' | 'summary'>('research');
+  const [showStats, setShowStats] = useState(false);
   const [totalCost, setTotalCost] = useState(0);
-  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const availableModels = aiService.getAvailableModels();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
+    scrollToBottom();
   }, [messages]);
 
   useEffect(() => {
-    setAvailableModels(aiService.getAvailableModels());
+    // Add welcome message
+    const welcomeMessage: Message = {
+      id: 'welcome-1',
+      type: 'system',
+      content: 'Welcome to the AI-Enhanced Legal Research Platform! I can help you with legal research, document analysis, contract review, and more. What would you like to explore today?',
+      timestamp: new Date(),
+      metadata: {
+        model: 'system',
+        processingTime: 0,
+        tokensUsed: 0,
+        cost: 0
+      }
+    };
+    setMessages([welcomeMessage]);
   }, []);
 
-  useEffect(() => {
-    setQueryContext(prev => ({
-      ...prev,
-      userPreferences: {
-        ...prev.userPreferences,
-        analysisDepth,
-        preferredModel: selectedModel === 'auto' ? undefined : selectedModel
-      }
-    }));
-  }, [analysisDepth, selectedModel]);
+  const buildQueryContext = (): QueryContext => {
+    const conversationHistory = messages
+      .filter(m => m.type === 'user' || m.type === 'ai')
+      .slice(-5)
+      .map(m => ({
+        query: m.content,
+        response: m.aiResponse?.answer || m.content,
+        timestamp: m.timestamp
+      }));
 
-  const handleQuerySubmit = async (inputValue: string) => {
+    return {
+      conversationHistory,
+      documentContext: [],
+      userPreferences: {
+        preferredModel: selectedModel,
+        analysisDepth: 'standard'
+      }
+    };
+  };
+
+  const handleSuggestionClick = async (suggestion: string) => {
+    setInputText(suggestion);
+    await handleSend(suggestion);
+  };
+
+  const generateIntelligentSuggestions = async (userQuery: string) => {
+    try {
+      const suggestions = await enhancedAIService.generateSearchSuggestions(
+        userQuery,
+        messages.slice(-3).map(m => m.content)
+      );
+
+      if (suggestions.length > 0) {
+        const suggestionMessage: Message = {
+          id: `suggestion-${Date.now()}`,
+          type: 'suggestion',
+          content: 'Here are some intelligent suggestions to enhance your research:',
+          timestamp: new Date(),
+          suggestions: suggestions,
+          metadata: {
+            model: 'enhancement-engine',
+            processingTime: 0,
+            tokensUsed: 0,
+            cost: 0
+          }
+        };
+
+        setMessages(prev => [...prev, suggestionMessage]);
+      }
+    } catch (error) {
+      console.error('Error generating suggestions:', error);
+    }
+  };
+
+  const handleSend = async (text?: string) => {
+    const messageText = text || inputText.trim();
+    if (!messageText || isProcessing) return;
+
+    setIsProcessing(true);
+    setInputText('');
+
+    // Add user message
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}`,
       type: 'user',
-      content: inputValue,
-      timestamp: new Date()
+      content: messageText,
+      timestamp: new Date(),
+      metadata: {
+        model: 'user',
+        processingTime: 0,
+        tokensUsed: 0,
+        cost: 0
+      }
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
 
     try {
-      let enhancedQuery = inputValue;
-      
-      // Use enhanced AI if enabled
-      if (useEnhancedAI) {
-        const enhancement = await enhancedAIService.enhanceQuery(inputValue);
-        if (enhancement.improvements.length > 0) {
-          enhancedQuery = enhancement.enhancedQuery;
-          
-          const enhancementMessage: Message = {
-            id: (Date.now() + 0.3).toString(),
-            type: 'system',
-            content: `Query enhanced: ${enhancement.improvements.join(', ')}`,
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, enhancementMessage]);
-        }
-      }
+      // Process query with enhanced AI
+      const context = buildQueryContext();
+      const { processed, response } = await queryProcessor.processQuery(messageText, context);
 
-      // Get query suggestions first
-      const suggestions = await queryProcessor.suggestQueryImprovements(enhancedQuery);
-      
-      if (suggestions.suggestions.length > 0) {
-        const suggestionMessage: Message = {
-          id: (Date.now() + 0.5).toString(),
-          type: 'suggestion',
-          content: 'AI-generated query suggestions:',
-          timestamp: new Date(),
-          suggestions: suggestions.suggestions.map(s => ({ query: s, reasoning: 'Optimized for better results' }))
-        };
-        setMessages(prev => [...prev, suggestionMessage]);
-      }
-
-      // Generate smart search suggestions if using enhanced AI
-      if (useEnhancedAI) {
-        const smartSuggestions = await enhancedAIService.generateSearchSuggestions(enhancedQuery);
-        if (smartSuggestions.length > 0) {
-          const smartSuggestionMessage: Message = {
-            id: (Date.now() + 0.7).toString(),
-            type: 'suggestion',
-            content: 'Smart search suggestions:',
-            timestamp: new Date(),
-            suggestions: smartSuggestions.map(s => ({ query: s.query, reasoning: s.reasoning }))
-          };
-          setMessages(prev => [...prev, smartSuggestionMessage]);
-        }
-      }
-
-      // Process the query with enhanced AI capabilities
-      const { processed, response } = await queryProcessor.processQuery(enhancedQuery, queryContext);
-      
+      // Create AI response message
       const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `ai-${Date.now()}`,
         type: 'ai',
         content: response.answer,
         timestamp: new Date(),
+        aiResponse: {
+          answer: response.answer,
+          confidence: response.confidence,
+          sources: response.sources,
+          analysis: response.analysis
+        },
         processedQuery: processed,
-        aiResponse: response,
         metadata: {
           model: response.metadata.model,
           processingTime: response.metadata.processingTime,
+          tokensUsed: response.metadata.tokensUsed,
           cost: response.metadata.cost,
-          complexity: processed.estimatedComplexity,
-          enhanced: useEnhancedAI
+          complexity: processed.estimatedComplexity
         }
       };
 
       setMessages(prev => [...prev, aiMessage]);
       setTotalCost(prev => prev + response.metadata.cost);
 
-      // Get research recommendations if using enhanced AI
-      if (useEnhancedAI && analysisDepth !== 'quick') {
-        try {
-          const recommendations = await enhancedAIService.getResearchRecommendations(enhancedQuery);
-          if (recommendations.recommendations.length > 0) {
-            const recMessage: Message = {
-              id: (Date.now() + 1.5).toString(),
-              type: 'system',
-              content: `Research recommendations: ${recommendations.recommendations.map(r => r.title).join(', ')}. Suggested next steps: ${recommendations.nextSteps.slice(0, 2).join(', ')}.`,
-              timestamp: new Date()
-            };
-            setMessages(prev => [...prev, recMessage]);
-          }
-        } catch (error) {
-          console.error('Error getting recommendations:', error);
-        }
-      }
-
-      // Update conversation context
-      setQueryContext(prev => ({
-        ...prev,
-        conversationHistory: [
-          ...prev.conversationHistory.slice(-4), // Keep last 5 interactions
-          {
-            query: enhancedQuery,
-            response: response.answer,
-            timestamp: new Date()
-          }
-        ]
-      }));
+      // Generate intelligent suggestions after a brief delay
+      setTimeout(() => {
+        generateIntelligentSuggestions(messageText);
+      }, 1000);
 
     } catch (error) {
-      console.error('Query processing error:', error);
+      console.error('Error processing message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to process your message. Please try again.',
+        variant: 'destructive'
+      });
+
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'ai',
-        content: 'I apologize, but I encountered an error processing your request. Please try again or rephrase your query.',
-        timestamp: new Date()
+        id: `error-${Date.now()}`,
+        type: 'system',
+        content: 'I apologize, but I encountered an error processing your request. Please try rephrasing your question or contact support if the issue persists.',
+        timestamp: new Date(),
+        metadata: {
+          model: 'system',
+          processingTime: 0,
+          tokensUsed: 0,
+          cost: 0
+        }
       };
+
       setMessages(prev => [...prev, errorMessage]);
-      toast.error('Failed to process query');
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    handleQuerySubmit(suggestion);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
-  const clearConversation = () => {
+  const handleClearConversation = () => {
     setMessages([]);
-    setQueryContext({
-      conversationHistory: [],
-      documentContext: [],
-      userPreferences: {
-        analysisDepth
-      }
-    });
     setTotalCost(0);
+    toast({
+      title: 'Conversation Cleared',
+      description: 'Your conversation history has been cleared.'
+    });
+  };
+
+  const startVoiceInput = () => {
+    setIsListening(true);
+    // Voice input implementation would go here
+    toast({
+      title: 'Voice Input',
+      description: 'Voice input feature coming soon!'
+    });
+    setTimeout(() => setIsListening(false), 3000);
   };
 
   return (
-    <div className="flex flex-col h-full max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Brain className="w-6 h-6 text-blue-600" />
-            Advanced Legal AI Assistant
-            {useEnhancedAI && <Sparkles className="w-5 h-5 text-purple-500" />}
-          </h2>
-          <p className="text-slate-600">
-            {useEnhancedAI ? 'Intelligent legal research with enhanced ML analysis' : 'Standard AI legal research assistance'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={useEnhancedAI ? "default" : "outline"}
-            size="sm"
-            onClick={() => setUseEnhancedAI(!useEnhancedAI)}
-          >
-            <Zap className="w-4 h-4 mr-2" />
-            Enhanced AI
-          </Button>
-          <Badge variant="outline" className="flex items-center gap-1">
-            <DollarSign className="w-3 h-3" />
-            ${totalCost.toFixed(4)}
-          </Badge>
-          {messages.length > 0 && (
-            <Button variant="outline" size="sm" onClick={clearConversation}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Clear
+    <div className="h-full flex flex-col bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="w-6 h-6 text-blue-600" />
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900">AI Legal Assistant</h1>
+              <p className="text-sm text-slate-600">Enhanced conversational research platform</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Brain className="w-3 h-3" />
+              {selectedModel}
+            </Badge>
+            <Badge variant="outline" className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {queryType}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStats(!showStats)}
+            >
+              <BarChart3 className="w-4 h-4" />
             </Button>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearConversation}
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="chat">AI Chat</TabsTrigger>
-          <TabsTrigger value="settings">AI Settings</TabsTrigger>
-        </TabsList>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Messages */}
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {messages.map((message) => (
+                <MessageDisplay
+                  key={message.id}
+                  message={message}
+                  onSuggestionClick={handleSuggestionClick}
+                />
+              ))}
+              {isProcessing && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 max-w-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse delay-100" />
+                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse delay-200" />
+                      <span className="text-sm text-slate-600 ml-2">AI is thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col mt-4">
-          <Card className="flex-1 flex flex-col">
-            <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-              <div className="space-y-4">
-                {messages.length === 0 && (
-                  <div className="text-center text-slate-500 py-8">
-                    <Brain className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                    <h3 className="text-lg font-medium mb-2">
-                      {useEnhancedAI ? 'Enhanced AI Legal Research' : 'AI Legal Research'}
-                    </h3>
-                    <p className="text-sm">
-                      {useEnhancedAI 
-                        ? 'Ask complex legal questions and get intelligent, ML-enhanced analysis with predictions and smart recommendations.'
-                        : 'Ask legal questions and get AI-powered analysis with citations and recommendations.'
-                      }
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 mt-4 max-w-md mx-auto">
-                      {[
-                        'Predict contract dispute outcome',
-                        'Analyze employment law precedents',
-                        'Classify legal document types',
-                        'Smart search optimization'
-                      ].map((example) => (
-                        <Button
-                          key={example}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => handleQuerySubmit(example)}
-                        >
-                          {example}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          {/* Input Area */}
+          <div className="bg-white border-t border-slate-200 p-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-2 mb-2">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="text-xs border border-slate-200 rounded px-2 py-1"
+                >
+                  {availableModels.map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
                 
-                {messages.map((message) => (
-                  <MessageDisplay
-                    key={message.id}
-                    message={message}
-                    onSuggestionClick={handleSuggestionClick}
-                  />
-                ))}
-                
-                {isLoading && (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                      <Brain className="w-4 h-4 animate-pulse" />
-                    </div>
-                    <div className="bg-white border border-slate-200 rounded-lg p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        <span className="text-sm text-slate-500 ml-2">
-                          {useEnhancedAI ? 'Processing with enhanced AI...' : 'Processing with AI...'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <select
+                  value={queryType}
+                  onChange={(e) => setQueryType(e.target.value as any)}
+                  className="text-xs border border-slate-200 rounded px-2 py-1"
+                >
+                  <option value="research">Research</option>
+                  <option value="analysis">Analysis</option>
+                  <option value="contract">Contract</option>
+                  <option value="citation">Citation</option>
+                  <option value="summary">Summary</option>
+                </select>
               </div>
-            </ScrollArea>
-            
-            <CardContent className="border-t p-4">
-              <QueryInput
-                onSubmit={handleQuerySubmit}
-                isLoading={isLoading}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-                analysisDepth={analysisDepth}
-                onAnalysisDepthChange={setAnalysisDepth}
-                availableModels={availableModels}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="settings" className="mt-4">
-          <ConversationStats
-            availableModels={availableModels}
-            messages={messages}
-            totalCost={totalCost}
-          />
-        </TabsContent>
-      </Tabs>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Textarea
+                    ref={inputRef}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask me anything about legal research, document analysis, or contract review..."
+                    className="min-h-[80px] resize-none"
+                    disabled={isProcessing}
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={() => handleSend()}
+                    disabled={!inputText.trim() || isProcessing}
+                    size="sm"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={startVoiceInput}
+                    disabled={isProcessing}
+                  >
+                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Sidebar */}
+        {showStats && (
+          <div className="w-80 bg-white border-l border-slate-200 p-4 overflow-auto">
+            <ConversationStats
+              availableModels={availableModels}
+              messages={messages}
+              totalCost={totalCost}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
