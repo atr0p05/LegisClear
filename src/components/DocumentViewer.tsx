@@ -7,8 +7,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Share, Eye, BookOpen, Calendar, User, Tag } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { FileText, Download, Share, Eye, BookOpen, Calendar, User, Tag, MessageSquare, Highlighter, Bookmark, GitBranch, Link } from 'lucide-react';
 import { toast } from 'sonner';
+import { DocumentVersioning } from './DocumentVersioning';
+import { DocumentRelationships } from './DocumentRelationships';
 
 interface DocumentMetadata {
   id: string;
@@ -24,6 +28,17 @@ interface DocumentMetadata {
   wordCount?: number;
   language: string;
   confidentiality: 'public' | 'confidential' | 'restricted';
+  version?: string;
+}
+
+interface Annotation {
+  id: string;
+  type: 'highlight' | 'note' | 'bookmark';
+  content: string;
+  position: string;
+  color: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 interface DocumentViewerProps {
@@ -33,6 +48,34 @@ interface DocumentViewerProps {
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, content }) => {
   const [activeTab, setActiveTab] = useState('preview');
+  const [annotations, setAnnotations] = useState<Annotation[]>([
+    {
+      id: '1',
+      type: 'highlight',
+      content: 'Important clause regarding liability',
+      position: 'Page 1, Paragraph 3',
+      color: 'yellow',
+      createdBy: 'Sarah Johnson',
+      createdAt: '2024-06-01'
+    },
+    {
+      id: '2',
+      type: 'note',
+      content: 'Need to review this section with client',
+      position: 'Page 2, Section 4.1',
+      color: 'blue',
+      createdBy: 'Mike Chen',
+      createdAt: '2024-05-30'
+    }
+  ]);
+
+  const [newAnnotation, setNewAnnotation] = useState({
+    type: 'note' as Annotation['type'],
+    content: '',
+    position: '',
+    color: 'yellow'
+  });
+  const [showAddAnnotation, setShowAddAnnotation] = useState(false);
 
   const handleDownload = () => {
     toast.success(`Downloading ${document.title}...`);
@@ -41,6 +84,25 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
   const handleShare = () => {
     navigator.clipboard.writeText(`Document: ${document.title} - ${document.id}`);
     toast.success('Document link copied to clipboard');
+  };
+
+  const handleAddAnnotation = () => {
+    if (!newAnnotation.content.trim()) {
+      toast.error('Please provide annotation content');
+      return;
+    }
+
+    const annotation: Annotation = {
+      id: Date.now().toString(),
+      ...newAnnotation,
+      createdBy: 'Current User',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setAnnotations(prev => [...prev, annotation]);
+    setNewAnnotation({ type: 'note', content: '', position: '', color: 'yellow' });
+    setShowAddAnnotation(false);
+    toast.success('Annotation added successfully');
   };
 
   const getTypeIcon = (type: string) => {
@@ -69,6 +131,32 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
     }
   };
 
+  const getAnnotationIcon = (type: Annotation['type']) => {
+    switch (type) {
+      case 'highlight':
+        return <Highlighter className="w-4 h-4" />;
+      case 'note':
+        return <MessageSquare className="w-4 h-4" />;
+      case 'bookmark':
+        return <Bookmark className="w-4 h-4" />;
+    }
+  };
+
+  const getAnnotationColor = (color: string) => {
+    switch (color) {
+      case 'yellow':
+        return 'bg-yellow-100 border-yellow-300';
+      case 'blue':
+        return 'bg-blue-100 border-blue-300';
+      case 'green':
+        return 'bg-green-100 border-green-300';
+      case 'red':
+        return 'bg-red-100 border-red-300';
+      default:
+        return 'bg-gray-100 border-gray-300';
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -77,12 +165,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
           View
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3">
               {getTypeIcon(document.type)}
               {document.title}
+              {document.version && (
+                <Badge variant="outline">v{document.version}</Badge>
+              )}
             </DialogTitle>
             <div className="flex items-center gap-2">
               <Badge className={getConfidentialityColor(document.confidentiality)}>
@@ -101,10 +192,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="preview">Preview</TabsTrigger>
             <TabsTrigger value="metadata">Metadata</TabsTrigger>
             <TabsTrigger value="annotations">Annotations</TabsTrigger>
+            <TabsTrigger value="versions">Versions</TabsTrigger>
+            <TabsTrigger value="relationships">Relationships</TabsTrigger>
           </TabsList>
 
           <TabsContent value="preview" className="flex-1">
@@ -231,14 +324,141 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, conten
 
           <TabsContent value="annotations" className="flex-1">
             <Card className="h-full">
-              <CardContent className="p-6">
-                <div className="text-center text-slate-500 mt-8">
-                  <FileText className="w-12 h-12 mx-auto mb-4" />
-                  <p>Annotations feature coming soon</p>
-                  <p className="text-sm">Add highlights, notes, and bookmarks to your documents</p>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    Annotations
+                    <Badge variant="secondary">{annotations.length}</Badge>
+                  </CardTitle>
+                  <Dialog open={showAddAnnotation} onOpenChange={setShowAddAnnotation}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">Add Annotation</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Annotation</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium">Type</label>
+                          <select 
+                            className="w-full p-2 border rounded"
+                            value={newAnnotation.type}
+                            onChange={(e) => setNewAnnotation(prev => ({ 
+                              ...prev, 
+                              type: e.target.value as Annotation['type'] 
+                            }))}
+                          >
+                            <option value="note">Note</option>
+                            <option value="highlight">Highlight</option>
+                            <option value="bookmark">Bookmark</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Position</label>
+                          <Input
+                            placeholder="e.g., Page 1, Section 2.1"
+                            value={newAnnotation.position}
+                            onChange={(e) => setNewAnnotation(prev => ({ 
+                              ...prev, 
+                              position: e.target.value 
+                            }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Content</label>
+                          <Textarea
+                            placeholder="Enter your annotation..."
+                            value={newAnnotation.content}
+                            onChange={(e) => setNewAnnotation(prev => ({ 
+                              ...prev, 
+                              content: e.target.value 
+                            }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Color</label>
+                          <select 
+                            className="w-full p-2 border rounded"
+                            value={newAnnotation.color}
+                            onChange={(e) => setNewAnnotation(prev => ({ 
+                              ...prev, 
+                              color: e.target.value 
+                            }))}
+                          >
+                            <option value="yellow">Yellow</option>
+                            <option value="blue">Blue</option>
+                            <option value="green">Green</option>
+                            <option value="red">Red</option>
+                          </select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setShowAddAnnotation(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleAddAnnotation}>
+                            Add Annotation
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-96">
+                  <div className="space-y-3">
+                    {annotations.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">
+                        <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No annotations yet</p>
+                        <p className="text-sm">Add highlights, notes, and bookmarks</p>
+                      </div>
+                    ) : (
+                      annotations.map((annotation) => (
+                        <div 
+                          key={annotation.id} 
+                          className={`p-3 border rounded-lg ${getAnnotationColor(annotation.color)}`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {getAnnotationIcon(annotation.type)}
+                              <span className="font-medium capitalize">{annotation.type}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {annotation.position}
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {annotation.createdAt}
+                            </div>
+                          </div>
+                          <p className="text-sm mb-2">{annotation.content}</p>
+                          <div className="text-xs text-slate-600">
+                            By {annotation.createdBy}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="versions" className="flex-1">
+            <DocumentVersioning 
+              documentId={document.id}
+              documentTitle={document.title}
+              currentVersion={document.version || "1.0"}
+            />
+          </TabsContent>
+
+          <TabsContent value="relationships" className="flex-1">
+            <DocumentRelationships 
+              documentId={document.id}
+              documentTitle={document.title}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
